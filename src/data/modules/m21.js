@@ -1,0 +1,307 @@
+// m21 — The Browser Harness
+// Level 6 · Ship It — "From laptop to the world"
+export default {
+  id: "m21",
+  level: 6,
+  n: 1,
+  icon: "Globe",
+  sim: "sandbox",
+  en: {
+    title: "The Browser Harness",
+    tagline: "The whole loop — model, tools, memory — running inside a web page. This portal's live demo is the proof.",
+    objectives: [
+      "Map the architecture of an in-browser harness: what runs client-side and why.",
+      "Use the mock-model pattern to teach and test loop mechanics with zero API cost.",
+      "Swap the mock for a real API call and state the honest limits of browser harnesses.",
+    ],
+    sections: [
+      {
+        kind: "text",
+        heading: "Everything in one tab",
+        body: "A browser *harness* (arnés) is the same agent *loop* (bucle) you've been studying — prompt, model call, *tool call* (llamada a herramienta), result, repeat — with every component running inside a web page. The model connection is a `fetch` to an API endpoint, the tools are JavaScript functions in the page, memory is `localStorage`, and the UI is the DOM you already know. No servers to deploy, no processes to manage, no installs: anyone with the URL gets a working agent harness instantly.\n\nThe architecture has four client-side pieces. **The loop driver** is a plain async function: it holds the message history, sends it to the model, parses the response for tool calls, executes them, appends results, and repeats until the model answers or a `max_iterations` cap trips. **The tool registry** is a JS object mapping names to `{ description, input_schema, run }` — the exact shape from m17, except `run` executes in the page: DOM queries, canvas drawing, `localStorage` reads, `fetch` to public APIs. **The model adapter** is a single function with one job: take messages + tool definitions, return the model's reply in a normalized shape. **The memory layer** persists conversation and settings to `localStorage` so a refresh doesn't wipe the session.\n\nWhat makes the browser special is what it *can't* do, and designing around that honestly is the skill. A page cannot keep secrets: any API key in client-side JS is visible to anyone who opens devtools, so browser harnesses either use a mock model, a user-supplied key stored only in memory, or a tiny proxy that holds the key server-side. A page also cannot run long background jobs reliably — close the tab and the loop dies — and its tools are limited to what the browser exposes: no raw sockets, no filesystem beyond sandboxed storage, no subprocesses. These are not flaws to hide; they are the design envelope. Inside it, browser harnesses are the fastest way to prototype, teach, and demo agent behavior: this very portal's simulators are browser harnesses with the model swapped for a scripted mock.\n\nState hydration deserves a design decision, not an accident. On load, the harness reads `localStorage` and rebuilds: settings, pinned facts, and the recent history window. Decide explicitly what survives a refresh (conversation: yes; in-flight tool calls: no — rehydrate them as 'interrupted' markers so the model doesn't hallucinate results it never received) and what doesn't. Multi-tab behavior is the edge case that bites: two tabs writing to the same `localStorage` keys will clobber each other's history. The `storage` event lets tabs detect external writes; the simple correct policy is last-writer-wins for settings plus per-tab session namespaces (`harness.v1.sessions.<tabId>`) for history. It costs one UUID per tab and eliminates an entire class of corruption bugs.",
+      },
+      {
+        kind: "code",
+        heading: "The mock-model pattern: a loop with zero API cost",
+        lang: "javascript",
+        code: "// A mock model: deterministic, free, and perfect for teaching the loop.\nfunction mockModel(messages, tools) {\n  const last = messages[messages.length - 1].content.toLowerCase();\n  // Scripted policy INSTEAD of a neural network: readable and testable.\n  if (last.includes(\"time\") && tools.time_now) {\n    return { tool_calls: [{ name: \"time_now\", args: {} }], text: \"\" };\n  }\n  if (last.includes(\"note\") && tools.notes_save) {\n    return {\n      tool_calls: [{ name: \"notes_save\", args: { title: \"demo\", body: last } }],\n      text: \"\",\n    };\n  }\n  return { tool_calls: [], text: `Mock reply to: \"${last.slice(0, 60)}…\"` };\n}\n\nasync function runLoop({ messages, tools, model, maxIterations = 10 }) {\n  for (let i = 0; i < maxIterations; i++) {\n    const reply = await model(messages, tools); // mock OR real API\n    if (reply.tool_calls.length === 0) return reply.text; // done\n    for (const call of reply.tool_calls) {\n      const result = await tools[call.name].run(call.args);\n      messages.push({ role: \"tool\", name: call.name, content: result });\n    }\n    messages.push({ role: \"assistant\", content: \"[tool calls executed]\" });\n  }\n  return \"Stopped: max iterations reached.\";\n}",
+        note: "The loop doesn't care what 'model' is — a scripted mock teaches mechanics; a real API teaches behavior. Every simulator in this portal is this function with different scripted policies; the loop below it never changes, which is exactly the adapter-seam lesson in executable form.",
+      },
+      {
+        kind: "text",
+        heading: "Swapping the mock for a real API",
+        body: "The mock-model pattern earns its keep twice: first as a teaching tool (every simulator in this portal is a mock), then as a test harness (your loop logic gets unit-tested against deterministic mocks before it ever spends a cent). But the real payoff is architectural: because the loop only depends on the *model adapter's* normalized shape — `{ tool_calls, text }` — swapping in a real model is a one-function change.\n\nThe adapter for an OpenAI-compatible endpoint is about twenty lines: POST the messages and tool schemas, parse `choices[0].message.tool_calls`, normalize into `{ tool_calls, text }`. Keep the adapter thin and the loop dumb — all the intelligence (retry policy, iteration caps, error translation from m17) lives in the loop and the registry, not in the adapter. That separation is what lets the same loop run against a mock in the simulator, against a cheap model for drafts, and against a frontier model for production, with zero loop changes.\n\nNow the honest part: the key problem. A browser page cannot hold an API key safely, full stop. Three honest options exist. **Option A: user-supplied key** — an input field stores the key in memory (never `localStorage`, never a URL param), and requests go straight from the page to the API. Fine for personal tools; the user is spending their own key on their own machine. **Option B: proxy** — a tiny server endpoint holds the key and forwards requests. This is the production answer: the key never reaches the browser, and the proxy can enforce rate limits, budgets, and logging. **Option C: stay mocked** — for teaching portals like this one, the mock *is* the product; there is no key to leak because there is no key.\n\nTry the sandbox below: it runs the exact loop from the code above in your tab — first against the mock so you can watch each iteration, then (if you choose) you can point the adapter at a real endpoint and feel the difference in latency, cost, and behavior.\n\nBuild an adapter test matrix before you trust a swap. For each backend (mock, cheap model, frontier model, local Ollama), record the same five tasks: median latency per step, tokens per task, tool-call accuracy (did it pick the right tool with valid args?), and cost. Real numbers from typical builds: a mock answers in ~5ms at $0; `gpt-4o-mini` at ~800ms and ~$0.002 per 10-step task; a frontier model at 2–4s per step and ~$0.05–0.30 per task. The matrix tells you which backend fits which job — mocks for loop tests, cheap models for bulk drafts, frontier for the final pass — and it makes regressions visible: if tool-call accuracy drops from 98% to 91% after an adapter change, you catch it in the matrix, not in production. The adapter is a seam; the matrix is the proof the seam holds.",
+      },
+      {
+        kind: "code",
+        heading: "A real model adapter (OpenAI-compatible)",
+        lang: "javascript",
+        code: "// One-function swap: same loop, real model. Key stays out of the page —\n// call this through your proxy (Option B), or with a user-supplied key.\nasync function realModelAdapter(messages, tools, { endpoint, apiKey }) {\n  const res = await fetch(`${endpoint}/chat/completions`, {\n    method: \"POST\",\n    headers: {\n      \"Content-Type\": \"application/json\",\n      Authorization: `Bearer ${apiKey}`, // in-memory only, never persisted\n    },\n    body: JSON.stringify({\n      model: \"gpt-4o-mini\", // cheap default; swap per task\n      messages: messages.map((m) => ({ role: m.role, content: m.content })),\n      tools: Object.values(tools).map((t) => ({\n        type: \"function\",\n        function: { name: t.name, description: t.description, parameters: t.input_schema },\n      })),\n      tool_choice: \"auto\",\n    }),\n  });\n  if (!res.ok) throw new Error(`Model API error: ${res.status}`);\n  const data = await res.json();\n  const msg = data.choices[0].message;\n  return {\n    text: msg.content ?? \"\",\n    tool_calls: (msg.tool_calls ?? []).map((c) => ({\n      name: c.function.name,\n      args: JSON.parse(c.function.arguments || \"{}\"),\n    })),\n  };\n}",
+        note: "Twenty lines, one job: normalize any OpenAI-compatible API into the { tool_calls, text } shape the loop expects. Swap the model name per task and the economics change completely — the loop never needs to know.",
+      },
+      {
+        kind: "callout",
+        tone: "warn",
+        title: "Honest limits of the browser harness",
+        body: "Say these out loud before you ship one. (1) No secrets: any key in page JS is public — use a proxy or a user-supplied in-memory key. (2) No reliable background work: closing the tab kills the loop; long tasks need a server. (3) Tool sandbox: only what the browser exposes — no subprocesses, no raw filesystem, no private network. (4) CORS: the page can only call APIs that allow it; many don't, which is another reason proxies exist. (5) Cost blindness: without server-side metering, a runaway loop spends the user's key with no circuit breaker. A browser harness is the best prototyping and teaching shell ever built — and a production system only once a proxy handles keys, budgets, and persistence.",
+      },
+      {
+        kind: "checklist",
+        heading: "Browser harness build checklist",
+        items: [
+          "Loop driver, tool registry, model adapter, and memory layer are separate modules — the adapter is swappable.",
+          "All loop logic is tested against the mock before any real API spend.",
+          "API keys never touch localStorage, URLs, or bundled JS — in-memory input or proxy-held.",
+          "max_iterations and a per-task token budget cap every run; the UI shows spend live.",
+          "Tool set respects the browser sandbox: no tool pretends to do what the page cannot.",
+          "You can state the honest limits (above) to a user without flinching.",
+        ],
+      },
+    ],
+    takeaways: [
+      "A browser harness is the full agent loop — driver, registry, adapter, memory — running in one page.",
+      "The mock-model pattern teaches loop mechanics and tests loop logic at zero cost.",
+      "The model adapter is a one-function seam: same loop, mock or real model.",
+      "Browser harnesses can't hold secrets or do background work — proxies and honest scoping fix both.",
+    ],
+    quiz: [
+      {
+        q: "What are the four client-side pieces of a browser harness?",
+        options: [
+          "Loop driver, tool registry, model adapter, memory layer",
+          "Webpack, Babel, ESLint, and Prettier",
+          "Host, Client, Server, and Transport",
+          "GPU, CPU, RAM, and disk cache",
+        ],
+        answer: 0,
+        why: "The loop driver runs the iterations, the registry holds the tools, the adapter normalizes model I/O, and the memory layer (localStorage) persists state. Those four compose the whole harness in one page.",
+      },
+      {
+        q: "What is the main value of the mock-model pattern?",
+        options: [
+          "Mocks are smarter than real models",
+          "It teaches loop mechanics and lets you test loop logic deterministically at zero API cost",
+          "It eliminates the need for a tool registry",
+          "Mocks can hold API keys safely",
+        ],
+        answer: 1,
+        why: "A scripted mock replaces the neural network with readable policy, so every loop behavior is reproducible and free. You debug the loop — iteration, parsing, error paths — before spending anything on real inference.",
+      },
+      {
+        q: "Why is the model adapter kept to a single thin function?",
+        options: [
+          "Adapters cannot contain retry logic by spec",
+          "Thin functions execute faster in browsers",
+          "So the same loop runs unchanged against a mock, a cheap model, or a frontier model — only the adapter changes",
+          "The browser limits functions to 20 lines",
+        ],
+        answer: 2,
+        why: "The adapter is the seam: it normalizes any model API into { tool_calls, text }. Keeping it thin means swapping models is a one-function change and all loop intelligence stays in one tested place.",
+      },
+      {
+        q: "Where should a user-supplied API key live in a browser harness?",
+        options: [
+          "In a comment in the source code",
+          "In localStorage so it persists across sessions",
+          "In the URL so it can be shared",
+          "In memory only — never localStorage, URLs, or bundled JS",
+        ],
+        answer: 3,
+        why: "localStorage, URLs, and bundled JS are all readable by anyone with devtools access or a shared link. In-memory storage limits exposure to the current page session; a proxy is the production-grade answer.",
+      },
+      {
+        q: "A user closes the tab mid-task. What happens to the browser harness loop?",
+        options: [
+          "It dies with the tab — the browser can't do reliable background work",
+          "It pauses and resumes on next visit with full tool state",
+          "The mock model takes over and finishes the task",
+          "It continues on the server automatically",
+        ],
+        answer: 0,
+        why: "A page's JS lifetime is the tab's lifetime. There is no reliable background execution for arbitrary agent loops, so long-running tasks need a server-side runner — one of the honest limits.",
+      },
+      {
+        q: "Why do production browser harnesses typically use a proxy for model calls?",
+        options: [
+          "Proxies make models smarter",
+          "The API key never reaches the browser, and the proxy can enforce rate limits, budgets, and logging",
+          "Browsers cannot make fetch requests directly",
+          "Proxies are required by the MCP spec",
+        ],
+        answer: 1,
+        why: "A proxy solves the key problem (keys stay server-side) and adds the production controls a page can't provide: per-user rate limits, spend budgets with circuit breakers, and central trace logging.",
+      },
+      {
+        q: "Which tool is appropriate for a browser harness's registry?",
+        options: [
+          "open_raw_socket — open TCP connections anywhere",
+          "run_shell — execute arbitrary OS commands",
+          "query_dom — read and summarize the current page's DOM",
+          "read_etc_passwd — read the host's password file",
+        ],
+        answer: 2,
+        why: "Browser tools must respect the browser sandbox: DOM, canvas, storage, and fetch to CORS-allowing endpoints are in; subprocesses, raw filesystems, and raw sockets are out. A tool that pretends otherwise is a design lie.",
+      },
+      {
+        q: "The sandbox simulator in this portal runs the loop against a mock. What does that demonstrate?",
+        options: [
+          "That real APIs are unnecessary for learning",
+          "That the portal has no backend by accident",
+          "That mocks are sufficient for production agents",
+          "That loop mechanics — iteration, tool dispatch, result handling — are independent of which model sits behind the adapter",
+        ],
+        answer: 3,
+        why: "Because the loop only depends on the adapter's normalized shape, swapping mock for real changes behavior and cost but not mechanics. The simulator proves the architecture: same loop, different model behind the seam.",
+      },
+    ],
+  },
+  es: {
+    title: "El harness de navegador",
+    tagline: "El bucle completo (modelo, herramientas, memoria) corriendo dentro de una página web. La demo en vivo de este portal es la prueba.",
+    objectives: [
+      "Trazar la arquitectura de un harness de navegador: qué corre en el cliente y por qué.",
+      "Usar el patrón del modelo simulado para enseñar y probar la mecánica del bucle con coste cero de API.",
+      "Sustituir el simulado por una API real y enunciar los límites honestos de los harness de navegador.",
+    ],
+    sections: [
+      {
+        kind: "text",
+        heading: "Todo en una pestaña",
+        body: "Un *harness* (arnés) de navegador es el mismo *loop* (bucle) de agente que has estudiado (prompt, llamada al modelo, *tool call* o llamada a herramienta, resultado, repetir) con cada componente corriendo dentro de una página web. La conexión con el modelo es un `fetch` a un endpoint de API, las herramientas son funciones JavaScript de la página, la memoria es `localStorage` y la interfaz es el DOM que ya conoces. Sin servidores que desplegar, sin procesos que gestionar, sin instalaciones: cualquiera con la URL obtiene al instante un harness de agente funcional.\n\nLa arquitectura tiene cuatro piezas en el cliente. **El conductor del bucle** es una función asíncrona simple: guarda el historial de mensajes, lo envía al modelo, interpreta la respuesta buscando llamadas a herramientas, las ejecuta, añade los resultados y repite hasta que el modelo responde o salta el tope de `max_iterations`. **El registro de herramientas** es un objeto JS que mapea nombres a `{ description, input_schema, run }` (la forma exacta de m17), salvo que `run` se ejecuta en la página: consultas al DOM, dibujo en canvas, lecturas de `localStorage`, `fetch` a APIs públicas. **El adaptador del modelo** es una única función con un trabajo: tomar mensajes y definiciones de herramientas y devolver la respuesta del modelo en una forma normalizada. **La capa de memoria** persiste la conversación y los ajustes en `localStorage` para que un recargado no borre la sesión.\n\nLo que hace especial al navegador es lo que *no* puede hacer, y diseñar con honestidad en torno a eso es la habilidad. Una página no puede guardar secretos: cualquier clave API en el JS del cliente es visible para quien abra las devtools, así que los harness de navegador usan un modelo simulado, una clave aportada por el usuario guardada solo en memoria, o un pequeño proxy que guarda la clave en el servidor. Una página tampoco puede ejecutar trabajos largos en segundo plano de forma fiable (cierras la pestaña y el bucle muere), y sus herramientas se limitan a lo que el navegador expone: sin sockets crudos, sin sistema de archivos más allá del almacenamiento aislado, sin subprocesos. No son defectos que ocultar; son el marco de diseño. Dentro de él, los harness de navegador son la vía más rápida para prototipar, enseñar y demostrar comportamiento de agentes: los simuladores de este portal son harness de navegador con el modelo sustituido por un simulado guionizado.\n\nLa hidratación del estado merece una decisión de diseño, no un accidente. Al cargar, el *harness* lee `localStorage` y reconstruye: ajustes, hechos fijados y la ventana de historial reciente. Decide explícitamente qué sobrevive a un recargado (conversación: sí; llamadas a herramientas en vuelo: no; rehidrátalas como marcadores de «interrumpido» para que el modelo no alucine resultados que nunca recibió) y qué no. El comportamiento multipestaña es el caso borde que muerde: dos pestañas escribiendo en las mismas claves de `localStorage` se pisarán el historial. El evento `storage` permite a las pestañas detectar escrituras externas; la política simple y correcta es último-en-escribir-gana para ajustes más espacios de nombres de sesión por pestaña (`harness.v1.sessions.<tabId>`) para el historial. Cuesta un UUID por pestaña y elimina una clase entera de bugs de corrupción.",
+      },
+      {
+        kind: "code",
+        heading: "El patrón del modelo simulado: un bucle con coste cero de API",
+        lang: "javascript",
+        code: "// A mock model: deterministic, free, and perfect for teaching the loop.\nfunction mockModel(messages, tools) {\n  const last = messages[messages.length - 1].content.toLowerCase();\n  // Scripted policy INSTEAD of a neural network: readable and testable.\n  if (last.includes(\"time\") && tools.time_now) {\n    return { tool_calls: [{ name: \"time_now\", args: {} }], text: \"\" };\n  }\n  if (last.includes(\"note\") && tools.notes_save) {\n    return {\n      tool_calls: [{ name: \"notes_save\", args: { title: \"demo\", body: last } }],\n      text: \"\",\n    };\n  }\n  return { tool_calls: [], text: `Mock reply to: \"${last.slice(0, 60)}…\"` };\n}\n\nasync function runLoop({ messages, tools, model, maxIterations = 10 }) {\n  for (let i = 0; i < maxIterations; i++) {\n    const reply = await model(messages, tools); // mock OR real API\n    if (reply.tool_calls.length === 0) return reply.text; // done\n    for (const call of reply.tool_calls) {\n      const result = await tools[call.name].run(call.args);\n      messages.push({ role: \"tool\", name: call.name, content: result });\n    }\n    messages.push({ role: \"assistant\", content: \"[tool calls executed]\" });\n  }\n  return \"Stopped: max iterations reached.\";\n}",
+        note: "Al bucle no le importa qué sea «model»: un simulado guionizado enseña la mecánica; una API real enseña el comportamiento. Cada simulador de este portal es esta función con distintas políticas guionizadas; el bucle que hay debajo nunca cambia, que es justo la lección de la costura del adaptador en forma ejecutable.",
+      },
+      {
+        kind: "text",
+        heading: "Sustituir el simulado por una API real",
+        body: "El patrón del modelo simulado se amortiza dos veces: primero como herramienta didáctica (cada simulador de este portal es un simulado), luego como arnés de pruebas (la lógica de tu bucle se prueba con simulados deterministas antes de gastar un céntimo). Pero la verdadera recompensa es arquitectónica: como el bucle solo depende de la forma normalizada del *adaptador del modelo* (`{ tool_calls, text }`), cambiar a un modelo real es modificar una función.\n\nEl adaptador para un endpoint compatible con OpenAI son unas veinte líneas: POST con los mensajes y los esquemas de herramientas, interpretar `choices[0].message.tool_calls`, normalizar a `{ tool_calls, text }`. Mantén el adaptador fino y el bucle tonto: toda la inteligencia (política de reintentos, topes de iteración, traducción de errores de m17) vive en el bucle y el registro, no en el adaptador. Esa separación permite que el mismo bucle corra contra un simulado en el simulador, contra un modelo barato para borradores y contra un modelo puntero para producción, sin cambiar el bucle.\n\nAhora la parte honesta: el problema de la clave. Una página de navegador no puede guardar una clave API de forma segura, punto. Hay tres opciones honestas. **Opción A: clave aportada por el usuario**: un campo de entrada guarda la clave en memoria (nunca en `localStorage`, nunca en un parámetro de URL) y las peticiones van directo de la página a la API. Bien para herramientas personales; el usuario gasta su propia clave en su propia máquina. **Opción B: proxy**: un pequeño endpoint de servidor guarda la clave y reenvía las peticiones. Es la respuesta de producción: la clave nunca llega al navegador y el proxy puede aplicar límites de tasa, presupuestos y registro. **Opción C: seguir simulado**: para portales didácticos como este, el simulado *es* el producto; no hay clave que filtrar porque no hay clave.\n\nPrueba el sandbox de abajo: ejecuta en tu pestaña el bucle exacto del código de arriba, primero contra el simulado para que observes cada iteración; después (si quieres) puedes apuntar el adaptador a un endpoint real y notar la diferencia en latencia, coste y comportamiento.\n\nConstruye una matriz de pruebas del adaptador antes de confiar en un cambio. Para cada backend (simulado, modelo barato, modelo puntero, Ollama local), registra las mismas cinco tareas: latencia mediana por paso, tokens por tarea, precisión de llamadas a herramientas (¿eligió la herramienta correcta con argumentos válidos?) y coste. Números reales de construcciones típicas: un simulado responde en ~5 ms a 0 $; `gpt-4o-mini` a ~800 ms y ~0,002 $ por tarea de 10 pasos; un modelo puntero a 2–4 s por paso y ~0,05–0,30 $ por tarea. La matriz te dice qué backend encaja con cada trabajo (simulados para pruebas del bucle, modelos baratos para borradores masivos, puntero para la pasada final) y hace visibles las regresiones: si la precisión de llamadas cae del 98 % al 91 % tras un cambio de adaptador, lo cazas en la matriz, no en producción. El adaptador es una costura; la matriz es la prueba de que la costura aguanta.",
+      },
+      {
+        kind: "code",
+        heading: "Un adaptador de modelo real (compatible con OpenAI)",
+        lang: "javascript",
+        code: "// One-function swap: same loop, real model. Key stays out of the page —\n// call this through your proxy (Option B), or with a user-supplied key.\nasync function realModelAdapter(messages, tools, { endpoint, apiKey }) {\n  const res = await fetch(`${endpoint}/chat/completions`, {\n    method: \"POST\",\n    headers: {\n      \"Content-Type\": \"application/json\",\n      Authorization: `Bearer ${apiKey}`, // in-memory only, never persisted\n    },\n    body: JSON.stringify({\n      model: \"gpt-4o-mini\", // cheap default; swap per task\n      messages: messages.map((m) => ({ role: m.role, content: m.content })),\n      tools: Object.values(tools).map((t) => ({\n        type: \"function\",\n        function: { name: t.name, description: t.description, parameters: t.input_schema },\n      })),\n      tool_choice: \"auto\",\n    }),\n  });\n  if (!res.ok) throw new Error(`Model API error: ${res.status}`);\n  const data = await res.json();\n  const msg = data.choices[0].message;\n  return {\n    text: msg.content ?? \"\",\n    tool_calls: (msg.tool_calls ?? []).map((c) => ({\n      name: c.function.name,\n      args: JSON.parse(c.function.arguments || \"{}\"),\n    })),\n  };\n}",
+        note: "Veinte líneas, un trabajo: normalizar cualquier API compatible con OpenAI a la forma { tool_calls, text } que espera el bucle. Cambia el nombre del modelo por tarea y la economía cambia por completo: el bucle nunca necesita saberlo.",
+      },
+      {
+        kind: "callout",
+        tone: "warn",
+        title: "Límites honestos del harness de navegador",
+        body: "Dilos en voz alta antes de distribuir uno. (1) Sin secretos: cualquier clave en el JS de la página es pública: usa un proxy o una clave aportada por el usuario solo en memoria. (2) Sin trabajo fiable en segundo plano: cerrar la pestaña mata el bucle; las tareas largas necesitan un servidor. (3) Aislamiento de herramientas: solo lo que el navegador expone: sin subprocesos, sin sistema de archivos crudo, sin red privada. (4) CORS: la página solo puede llamar a APIs que lo permitan; muchas no, y esa es otra razón por la que existen los proxies. (5) Ceguera de costes: sin medición en el servidor, un bucle desbocado gasta la clave del usuario sin cortacircuitos. Un harness de navegador es el mejor shell de prototipado y enseñanza jamás construido, y un sistema de producción solo cuando un proxy gestiona claves, presupuestos y persistencia.",
+      },
+      {
+        kind: "checklist",
+        heading: "Lista de construcción del harness de navegador",
+        items: [
+          "El conductor del bucle, el registro de herramientas, el adaptador del modelo y la capa de memoria son módulos separados: el adaptador es intercambiable.",
+          "Toda la lógica del bucle se prueba contra el simulado antes de gastar nada en API real.",
+          "Las claves API nunca tocan localStorage, URLs ni JS empaquetado: entrada en memoria o guardadas en proxy.",
+          "max_iterations y un presupuesto de tokens por tarea limitan cada ejecución; la interfaz muestra el gasto en vivo.",
+          "El conjunto de herramientas respeta el aislamiento del navegador: ninguna herramienta finge hacer lo que la página no puede.",
+          "Puedes enunciar los límites honestos (arriba) a un usuario sin inmutarte.",
+        ],
+      },
+    ],
+    takeaways: [
+      "Un harness de navegador es el bucle de agente completo (conductor, registro, adaptador, memoria) corriendo en una página.",
+      "El patrón del modelo simulado enseña la mecánica del bucle y prueba su lógica con coste cero.",
+      "El adaptador del modelo es una costura de una función: mismo bucle, modelo simulado o real.",
+      "Los harness de navegador no pueden guardar secretos ni trabajar en segundo plano: los proxies y un alcance honesto lo resuelven.",
+    ],
+    quiz: [
+      {
+        q: "¿Cuáles son las cuatro piezas en el cliente de un harness de navegador?",
+        options: [
+          "Conductor del bucle, registro de herramientas, adaptador del modelo, capa de memoria",
+          "Webpack, Babel, ESLint y Prettier",
+          "Host, Client, Server y Transport",
+          "GPU, CPU, RAM y caché de disco",
+        ],
+        answer: 0,
+        why: "El conductor ejecuta las iteraciones, el registro guarda las herramientas, el adaptador normaliza la E/S del modelo y la capa de memoria (localStorage) persiste el estado. Esas cuatro componen todo el harness en una página.",
+      },
+      {
+        q: "¿Cuál es el valor principal del patrón del modelo simulado?",
+        options: [
+          "Los simulados son más listos que los modelos reales",
+          "Enseña la mecánica del bucle y permite probar su lógica de forma determinista con coste cero de API",
+          "Elimina la necesidad de un registro de herramientas",
+          "Los simulados pueden guardar claves API con seguridad",
+        ],
+        answer: 1,
+        why: "Un simulado guionizado sustituye la red neuronal por una política legible, así que cada comportamiento del bucle es reproducible y gratuito. Depuras el bucle (iteración, interpretación, rutas de error) antes de gastar nada en inferencia real.",
+      },
+      {
+        q: "¿Por qué el adaptador del modelo se mantiene como una única función fina?",
+        options: [
+          "Los adaptadores no pueden contener lógica de reintento por especificación",
+          "Las funciones finas se ejecutan más rápido en navegadores",
+          "Para que el mismo bucle corra sin cambios contra un simulado, un modelo barato o un modelo puntero: solo cambia el adaptador",
+          "El navegador limita las funciones a 20 líneas",
+        ],
+        answer: 2,
+        why: "El adaptador es la costura: normaliza cualquier API de modelo a { tool_calls, text }. Mantenerlo fino hace que cambiar de modelo sea modificar una función y que toda la inteligencia del bucle quede en un solo lugar probado.",
+      },
+      {
+        q: "¿Dónde debe vivir una clave API aportada por el usuario en un harness de navegador?",
+        options: [
+          "En un comentario del código fuente",
+          "En localStorage para que persista entre sesiones",
+          "En la URL para poder compartirla",
+          "Solo en memoria: nunca en localStorage, URLs ni JS empaquetado",
+        ],
+        answer: 3,
+        why: "localStorage, las URLs y el JS empaquetado son legibles para cualquiera con acceso a devtools o a un enlace compartido. Guardarla en memoria limita la exposición a la sesión actual de la página; un proxy es la respuesta de nivel producción.",
+      },
+      {
+        q: "Un usuario cierra la pestaña a mitad de tarea. ¿Qué le pasa al bucle del harness de navegador?",
+        options: [
+          "Muere con la pestaña: el navegador no puede hacer trabajo fiable en segundo plano",
+          "Se pausa y se reanuda en la próxima visita con el estado completo de herramientas",
+          "El modelo simulado toma el relevo y termina la tarea",
+          "Continúa en el servidor automáticamente",
+        ],
+        answer: 0,
+        why: "La vida del JS de una página es la vida de la pestaña. No hay ejecución fiable en segundo plano para bucles de agente arbitrarios, así que las tareas largas necesitan un ejecutor en servidor: uno de los límites honestos.",
+      },
+      {
+        q: "¿Por qué los harness de navegador en producción suelen usar un proxy para las llamadas al modelo?",
+        options: [
+          "Los proxies hacen más listos a los modelos",
+          "La clave API nunca llega al navegador, y el proxy puede aplicar límites de tasa, presupuestos y registro",
+          "Los navegadores no pueden hacer fetch directamente",
+          "Los proxies los exige la especificación MCP",
+        ],
+        answer: 1,
+        why: "Un proxy resuelve el problema de la clave (las claves quedan en el servidor) y añade los controles de producción que una página no puede dar: límites de tasa por usuario, presupuestos de gasto con cortacircuitos y registro central de trazas.",
+      },
+      {
+        q: "¿Qué herramienta es apropiada para el registro de un harness de navegador?",
+        options: [
+          "open_raw_socket: abrir conexiones TCP a cualquier sitio",
+          "run_shell: ejecutar comandos arbitrarios del SO",
+          "query_dom: leer y resumir el DOM de la página actual",
+          "read_etc_passwd: leer el archivo de contraseñas del anfitrión",
+        ],
+        answer: 2,
+        why: "Las herramientas de navegador deben respetar el aislamiento del navegador: DOM, canvas, almacenamiento y fetch a endpoints con CORS están dentro; subprocesos, sistemas de archivos crudos y sockets crudos están fuera. Una herramienta que finja lo contrario es una mentira de diseño.",
+      },
+      {
+        q: "El simulador sandbox de este portal ejecuta el bucle contra un simulado. ¿Qué demuestra?",
+        options: [
+          "Que las APIs reales son innecesarias para aprender",
+          "Que el portal no tiene backend por accidente",
+          "Que los simulados bastan para agentes en producción",
+          "Que la mecánica del bucle (iteración, despacho de herramientas, gestión de resultados) es independiente del modelo tras el adaptador",
+        ],
+        answer: 3,
+        why: "Como el bucle solo depende de la forma normalizada del adaptador, cambiar el simulado por uno real cambia comportamiento y coste, pero no la mecánica. El simulador prueba la arquitectura: mismo bucle, distinto modelo tras la costura.",
+      },
+    ],
+  },
+};

@@ -1,0 +1,307 @@
+// m18 — Skills: Packaged Behavior
+// Level 5 · Tools, Skills & MCP — "Hands for the model"
+export default {
+  id: "m18",
+  level: 5,
+  n: 2,
+  icon: "Package",
+  sim: null,
+  en: {
+    title: "Skills: Packaged Behavior",
+    tagline: "A skill is a curated bundle of instructions plus the tools to carry them out — expertise you can install.",
+    objectives: [
+      "Explain what a skill is and how it differs from a raw tool or a bare system prompt.",
+      "Package behavior in a SKILL.md-style format the harness can load and route to.",
+      "Design skill routing and versioning so skills compose instead of colliding.",
+    ],
+    sections: [
+      {
+        kind: "text",
+        heading: "From tools to expertise",
+        body: "A tool gives the model a *capability*: it can read files, query a database, send a message. A *skill* (habilidad) gives the model *expertise*: it knows how to do a whole job well. Concretely, a skill is a packaged bundle containing three things: a curated system prompt that teaches the model's role and method, a set of tools scoped to that job, and the workflow knowledge — the order of operations, the quality bar, the common pitfalls — that turns tool calls into a competent performance.\n\nThink of the difference this way. A bare tool `run_sql` lets the model query a database; it will write whatever query occurs to it, with no guardrails. A `data-analyst` skill wraps that same tool with instructions: always inspect the schema first, never run UPDATE or DELETE, prefer aggregated queries under 10k rows, explain every number you report, and format findings as a table plus three bullet takeaways. Same tool, radically different reliability. The skill is the difference between handing someone a scalpel and handing them a surgeon's training.\n\nSkills solve the problem that system prompts alone cannot. A single system prompt tries to make the model good at everything and ends up making it mediocre at all of it; prompt length grows, instructions contradict each other, and the model starts ignoring the fine print. Skills let you *partition* expertise: the harness loads only the skill relevant to the current task, so the model sees a short, focused brief instead of a 4,000-word omnibus prompt. A coding skill, a writing skill, a research skill — each sharp, each loaded on demand.\n\nThe packaging matters as much as the content. A skill that lives as folklore in your head helps nobody; a skill that lives as a versioned file — the SKILL.md convention, with a name, a description for routing, the instructions, and the tool list — can be shared, tested, improved, and composed. In this *harness* (arnés) module you'll learn the full lifecycle: writing one, routing to it, and keeping it from colliding with its siblings.\n\nSkills also compose. A `code-review` skill can declare a dependency on the `repo-context` skill's tools, and the harness activates the union for the task — one active *composition*, still one prompt brief. The failure mode to watch is instruction collision: two skills that both define 'how to write a summary' will fight, and the model resolves the fight silently. Prevent it with a lint step at load time: when two active-scope skills define overlapping guidance topics, the harness refuses to co-activate and logs the conflict. Keep a skill catalog file — name, version, description, owner, test tasks — so a growing team can discover skills instead of reinventing them. The catalog is also where deprecation lives: mark `data-analyst 1.x` deprecated with a migration note, and the router warns instead of silently switching behavior under users.",
+      },
+      {
+        kind: "code",
+        heading: "A SKILL.md-style skill, as data",
+        lang: "javascript",
+        code: "// SKILL.md convention, represented as a JS object your harness can load.\nconst dataAnalystSkill = {\n  name: \"data-analyst\",\n  version: \"1.3.0\",\n  // The description is for ROUTING: the router reads this, not the full prompt.\n  description:\n    \"Answers questions about business data. Use when the user asks about \" +\n    \"metrics, trends, or reports. Do NOT use for writing application code.\",\n  system_addendum: [\n    \"You are a careful data analyst. Your method:\",\n    \"1. Inspect the schema (describe_table) before writing any query.\",\n    \"2. Read-only: never emit UPDATE, DELETE, DROP, or ALTER.\",\n    \"3. Prefer aggregations; keep result sets under 10,000 rows.\",\n    \"4. State your assumptions and the query's time range explicitly.\",\n    \"5. Report as: one table + up to 3 takeaway bullets, no fluff.\",\n  ].join(\"\\n\"),\n  tools: [\"describe_table\", \"run_sql_readonly\", \"make_chart\"],\n  // Guardrails the harness enforces, not just the model promises.\n  policy: {\n    max_tool_calls: 12,\n    forbidden_statements: [\"UPDATE\", \"DELETE\", \"DROP\", \"ALTER\"],\n    max_rows: 10000,\n  },\n};",
+        note: "Routing description stays short; the method lives in system_addendum; policy is enforced by code, not by hope.",
+      },
+      {
+        kind: "text",
+        heading: "Routing: which skill is active, and when",
+        body: "A harness with twenty skills and no router is a library with no catalog. Routing is the decision procedure that picks which skill — if any — is active for the current task. There are three common designs, and production harnesses usually combine them.\n\n**Classifier routing** asks the model (or a smaller, cheaper model) to pick a skill from the registry descriptions before the main *loop* (bucle) starts. Cost: one extra model call, typically under a second and a few hundred tokens with a small model. Benefit: the main loop then runs with a tight, focused prompt. This is the default choice for most harnesses.\n\n**Keyword / heuristic routing** matches the user's request against trigger phrases each skill declares (`\"metrics\", \"dashboard\", \"kpi\"` → data-analyst). It costs nothing at runtime and is perfectly predictable, but it is brittle: users don't speak in your keywords. Use it as a fast path with a classifier fallback, not as the only mechanism.\n\n**Model self-selection** puts all skill descriptions in the system prompt and lets the model announce which skill it is using. Simple to build, but it reintroduces the omnibus-prompt problem: with more than ~8 skills, the descriptions alone eat a thousand tokens every step and the model starts picking skills by vibes.\n\nWhichever design you choose, obey two rules. First, **exactly one skill active at a time** unless you have a tested reason otherwise. Two active skills means two sets of instructions, two quality bars, and contradictions the model resolves by ignoring one of them — usually the one you needed. Second, make routing *visible*: log which skill was chosen and why, and show it in the UI. When the harness answers a SQL question with a poem, the first thing you check is whether the wrong skill was active. If routing is invisible, that debugging session takes an hour; if it's logged, it takes ten seconds.\n\nSkills also need an escape hatch: a `general` fallback for requests that match nothing, and a rule that the model can *request* a skill switch mid-task (\"this turned out to be a coding task\") while the harness approves or denies it. Mid-task switches are powerful — a research task that discovers it needs code — but unbounded switching is how a harness burns 40 tool calls wandering between skills. Cap switches at two or three per task in policy, just like tool calls.\n\nDesign the fallback deliberately. The `general` skill is not 'no skill' — it's a real skill with a real brief: a competent generalist method, the full safe tool set, and conservative limits (fewer max tool calls, since unfocused tasks wander). Log every fallback activation; if more than ~20% of tasks land in `general`, your skill catalog has a coverage gap, not a routing problem. And make routing decisions replayable: store the user request, the candidate skills with scores, and the winner in the trace. When a user reports 'it used to write great SQL and now it writes poetry,' you don't guess — you open the trace and see that the classifier picked `creative-writer` with 0.51 confidence because the request mentioned 'quarterly story.' Routing bugs are prompt bugs with extra steps; traces make them fixable.",
+      },
+      {
+        kind: "compare",
+        heading: "Skill vs raw tool vs bare system prompt",
+        headers: ["Bare system prompt", "Raw tool", "Skill"],
+        rows: [
+          ["One long brief for everything; grows contradictory", "A capability with no method attached", "Curated instructions + scoped tools + workflow"],
+          ["Loaded always → permanent token tax", "Model improvises how to use it", "Loaded on demand → lean prompt per task"],
+          ["No enforcement: instructions are suggestions", "No guardrails beyond the code itself", "Policy enforced by the harness (limits, forbidden ops)"],
+          ["Hard to test in isolation", "Testable, but only the mechanism", "Versioned, testable as a unit of expertise"],
+          ["Use for: identity, tone, global rules", "Use for: atomic capabilities", "Use for: whole jobs done well, repeatedly"],
+        ],
+      },
+      {
+        kind: "code",
+        heading: "A minimal skill router with policy enforcement",
+        lang: "javascript",
+        code: "async function routeSkill(userRequest, skills, smallModel) {\n  // Fast path: keyword triggers declared by each skill.\n  const hits = skills.filter((s) =>\n    s.triggers.some((t) => userRequest.toLowerCase().includes(t))\n  );\n  if (hits.length === 1) return { skill: hits[0], reason: \"keyword\" };\n  // Fallback: ask a small, cheap model to choose from descriptions.\n  const choice = await smallModel.pickOne({\n    task: userRequest,\n    options: skills.map((s) => ({ name: s.name, description: s.description })),\n  });\n  return { skill: skills.find((s) => s.name === choice), reason: \"classifier\" };\n}\n\nfunction activateSkill(skill, harness) {\n  // Exactly one skill active: swap prompt addendum AND the tool registry.\n  harness.systemAddendum = skill.system_addendum;\n  harness.tools = Object.fromEntries(\n    Object.entries(harness.allTools).filter(([name]) => skill.tools.includes(name))\n  );\n  harness.policy = Object.assign({}, harness.policy, skill.policy);\n  harness.log(\"skill.activated\", { skill: skill.name, version: skill.version });\n}",
+        note: "Keyword fast path, classifier fallback, single active skill, and every activation is logged with its version.",
+      },
+      {
+        kind: "callout",
+        tone: "tip",
+        title: "Versioning skills like software",
+        body: "Give every skill a semver version and never edit an active version in place: data-analyst 1.3.0 stays frozen while you draft 1.4.0. Pin the version in your harness config, keep a changelog of what changed (\"1.4.0: added max_rows policy after the 2M-row incident\"), and A/B new versions on a fixed set of test tasks before promoting. Skills are prompt code — treat regressions in a skill's instructions with the same seriousness as regressions in real code, because to the model they are the same thing.",
+      },
+    ],
+    takeaways: [
+      "A skill bundles curated instructions, scoped tools, and workflow knowledge into installable expertise.",
+      "Route to exactly one active skill at a time, and log which skill was chosen and why.",
+      "Enforce skill policy in harness code (limits, forbidden operations), not just in prompt text.",
+      "Version skills like software: semver, changelog, frozen releases, A/B tests before promoting.",
+    ],
+    quiz: [
+      {
+        q: "What is the essential difference between a tool and a skill?",
+        options: [
+          "A tool is a capability; a skill bundles instructions, scoped tools, and workflow knowledge into expertise for a whole job",
+          "A skill can only be used once per session",
+          "Tools are for models, skills are for humans",
+          "A skill is faster to execute than a tool",
+        ],
+        answer: 0,
+        why: "A tool provides an atomic capability with no method attached. A skill packages the curated prompt, the relevant tools, and the order-of-operations knowledge that turns those capabilities into a competent, repeatable performance.",
+      },
+      {
+        q: "In the SKILL.md-style format, what is the routing description used for?",
+        options: [
+          "It is shown to the end user as documentation",
+          "The router reads it to decide which skill matches a task; the full prompt is only loaded after selection",
+          "It replaces the system prompt entirely",
+          "It lists the skill's version history",
+        ],
+        answer: 1,
+        why: "Keeping routing on a short description is the whole point: the router picks from cheap descriptions, and only the chosen skill's full instructions enter the context. Loading every skill's full prompt would recreate the omnibus-prompt problem.",
+      },
+      {
+        q: "Why should skill policy (max tool calls, forbidden statements) be enforced by harness code rather than prompt text?",
+        options: [
+          "Prompt text is invisible to the harness",
+          "Prompt text cannot express numeric limits",
+          "The model treats prompt instructions as suggestions and may ignore them under pressure; code enforcement is reliable",
+          "Code enforcement makes the skill run faster",
+        ],
+        answer: 2,
+        why: "Instructions in a prompt are advisory — a model deep in a 25-step loop will happily exceed a 'max 12 calls' suggestion. Harness-side enforcement (counters, statement blocklists) turns the policy into a guarantee.",
+      },
+      {
+        q: "A harness has 15 skills and uses model self-selection with all descriptions in the system prompt. What is the main problem?",
+        options: [
+          "Self-selection is slower than classifier routing",
+          "Skills cannot be versioned with self-selection",
+          "The model cannot read more than 5 skill descriptions",
+          "Descriptions consume ~1,000+ tokens every step and the model starts choosing by vibes",
+        ],
+        answer: 3,
+        why: "With ~15 skills the descriptions alone cost over a thousand tokens on every loop step, and faced with that much choice the model picks inconsistently. Classifier routing keeps the main prompt lean.",
+      },
+      {
+        q: "What is the recommended rule for how many skills are active at once?",
+        options: [
+          "Exactly one, unless you have a tested reason otherwise — multiple skills bring contradictory instructions",
+          "At least three, for redundancy",
+          "Zero — skills should never be active during tool calls",
+          "As many as match, to give the model maximum context",
+        ],
+        answer: 0,
+        why: "Two active skills means two quality bars and two sets of instructions; the model resolves contradictions by silently ignoring one. One active skill keeps behavior predictable and debuggable.",
+      },
+      {
+        q: "A user asks for 'quarterly revenue trends' and the keyword router matches both data-analyst and report-writer. What should happen?",
+        options: [
+          "Activate both skills simultaneously",
+          "Fall back to the classifier to pick one, and log the choice with its reason",
+          "Refuse the request as ambiguous",
+          "Pick one at random to keep latency low",
+        ],
+        answer: 1,
+        why: "Ambiguous keyword hits are exactly what the classifier fallback is for: one cheap model call resolves the tie, and logging the choice plus reason makes the routing decision auditable when behavior looks wrong.",
+      },
+      {
+        q: "Why must skill versions be frozen rather than edited in place?",
+        options: [
+          "Version numbers are required by the model API",
+          "Frozen files load faster from disk",
+          "So you can pin, A/B test, and roll back behavior changes like software releases",
+          "The SKILL.md spec forbids editing",
+        ],
+        answer: 2,
+        why: "Skills are prompt code: an in-place edit silently changes behavior for every future task with no way to compare or revert. Frozen versions plus changelogs and A/B tests make skill evolution safe and measurable.",
+      },
+      {
+        q: "What is the risk of allowing unlimited mid-task skill switches?",
+        options: [
+          "Skill switches corrupt the tool registry permanently",
+          "Mid-task switches are impossible to log",
+          "The harness will run out of skills to switch to",
+          "The model can burn dozens of tool calls wandering between skills without finishing anything",
+        ],
+        answer: 3,
+        why: "Each switch reloads instructions and invites a fresh start, so unbounded switching becomes an expensive form of thrashing. Capping switches at two or three per task in policy keeps the escape hatch without the wander.",
+      },
+    ],
+  },
+  es: {
+    title: "Skills: comportamiento empaquetado",
+    tagline: "Una skill es un paquete curado de instrucciones más las herramientas para ejecutarlas: pericia instalable.",
+    objectives: [
+      "Explicar qué es una skill y en qué se diferencia de una herramienta suelta o de un system prompt simple.",
+      "Empaquetar comportamiento en un formato estilo SKILL.md que el harness pueda cargar y enrutar.",
+      "Diseñar el enrutado y el versionado de skills para que se compongan en vez de colisionar.",
+    ],
+    sections: [
+      {
+        kind: "text",
+        heading: "De las herramientas a la pericia",
+        body: "Una herramienta da al modelo una *capacidad*: puede leer archivos, consultar una base de datos, enviar un mensaje. Una *skill* (habilidad) le da *pericia*: sabe hacer bien un trabajo completo. En concreto, una skill es un paquete que contiene tres cosas: un system prompt curado que enseña al modelo su rol y su método, un conjunto de herramientas acotadas a ese trabajo, y el conocimiento del flujo (el orden de operaciones, el listón de calidad, los errores comunes) que convierte llamadas a herramientas en una ejecución competente.\n\nPiensa la diferencia así. Una herramienta simple `run_sql` permite al modelo consultar una base de datos; escribirá la consulta que se le ocurra, sin protecciones. Una skill `data-analyst` envuelve esa misma herramienta con instrucciones: inspecciona siempre el esquema primero, nunca ejecutes UPDATE ni DELETE, prefiere consultas agregadas de menos de 10.000 filas, explica cada número que informes y presenta los hallazgos como una tabla más tres conclusiones. La misma herramienta, una fiabilidad radicalmente distinta. La skill es la diferencia entre entregar a alguien un bisturí y entregarle la formación de un cirujano.\n\nLas skills resuelven el problema que los system prompts por sí solos no pueden. Un único system prompt intenta que el modelo sea bueno en todo y acaba haciéndolo mediocre en todo; el prompt crece, las instrucciones se contradicen y el modelo empieza a ignorar la letra pequeña. Las skills permiten *particionar* la pericia: el harness carga solo la skill relevante para la tarea actual, así el modelo ve un briefing corto y enfocado en vez de un prompt ómnibus de 4.000 palabras. Una skill de programación, una de redacción, una de investigación: cada una afilada, cada una cargada bajo demanda.\n\nEl empaquetado importa tanto como el contenido. Una skill que vive como folclore en tu cabeza no ayuda a nadie; una skill que vive como un archivo versionado (la convención SKILL.md, con nombre, descripción para el enrutado, instrucciones y lista de herramientas) puede compartirse, probarse, mejorarse y componerse. En este módulo del *harness* (arnés) aprenderás el ciclo de vida completo: escribir una, enrutar hacia ella y evitar que colisione con sus hermanas.\n\nLas skills también se componen. Una skill `code-review` puede declarar dependencia de las herramientas de la skill `repo-context`, y el *harness* activa la unión para la tarea: una composición activa, pero un solo briefing en el prompt. El modo de fallo a vigilar es la colisión de instrucciones: dos skills que definen «cómo escribir un resumen» lucharán, y el modelo resuelve la lucha en silencio. Evítalo con un paso de lint al cargar: cuando dos skills de ámbito activo definen temas de guía solapados, el *harness* rechaza coactivarlas y registra el conflicto. Mantén un archivo de catálogo de skills (nombre, versión, descripción, responsable, tareas de prueba) para que un equipo creciente descubra skills en vez de reinventarlas. El catálogo es también donde vive la obsolescencia: marca `data-analyst 1.x` como obsoleta con una nota de migración, y el enrutador avisa en vez de cambiar el comportamiento en silencio bajo los usuarios.",
+      },
+      {
+        kind: "code",
+        heading: "Una skill estilo SKILL.md, como datos",
+        lang: "javascript",
+        code: "// SKILL.md convention, represented as a JS object your harness can load.\nconst dataAnalystSkill = {\n  name: \"data-analyst\",\n  version: \"1.3.0\",\n  // The description is for ROUTING: the router reads this, not the full prompt.\n  description:\n    \"Answers questions about business data. Use when the user asks about \" +\n    \"metrics, trends, or reports. Do NOT use for writing application code.\",\n  system_addendum: [\n    \"You are a careful data analyst. Your method:\",\n    \"1. Inspect the schema (describe_table) before writing any query.\",\n    \"2. Read-only: never emit UPDATE, DELETE, DROP, or ALTER.\",\n    \"3. Prefer aggregations; keep result sets under 10,000 rows.\",\n    \"4. State your assumptions and the query's time range explicitly.\",\n    \"5. Report as: one table + up to 3 takeaway bullets, no fluff.\",\n  ].join(\"\\n\"),\n  tools: [\"describe_table\", \"run_sql_readonly\", \"make_chart\"],\n  // Guardrails the harness enforces, not just the model promises.\n  policy: {\n    max_tool_calls: 12,\n    forbidden_statements: [\"UPDATE\", \"DELETE\", \"DROP\", \"ALTER\"],\n    max_rows: 10000,\n  },\n};",
+        note: "La descripción de enrutado es breve; el método vive en system_addendum; la política la aplica el código, no la esperanza.",
+      },
+      {
+        kind: "text",
+        heading: "Enrutado: qué skill está activa y cuándo",
+        body: "Un harness con veinte skills y sin enrutador es una biblioteca sin catálogo. El enrutado es el procedimiento de decisión que elige qué skill (si alguna) está activa para la tarea actual. Hay tres diseños comunes, y los harness en producción suelen combinarlos.\n\nEl **enrutado por clasificador** pide al modelo (o a un modelo más pequeño y barato) que elija una skill entre las descripciones del registro antes de que empiece el *loop* (bucle) principal. Coste: una llamada extra al modelo, normalmente menos de un segundo y unos cientos de tokens con un modelo pequeño. Beneficio: el bucle principal corre con un prompt ajustado y enfocado. Es la opción por defecto de la mayoría de los harness.\n\nEl **enrutado heurístico por palabras clave** compara la petición del usuario con frases disparadoras que declara cada skill (`«métricas», «panel», «kpi»` → data-analyst). No cuesta nada en ejecución y es perfectamente predecible, pero es frágil: los usuarios no hablan con tus palabras clave. Úsalo como vía rápida con un clasificador de respaldo, no como único mecanismo.\n\nLa **autoselección del modelo** pone todas las descripciones de skills en el system prompt y deja que el modelo anuncie cuál está usando. Simple de construir, pero reintroduce el problema del prompt ómnibus: con más de unas 8 skills, solo las descripciones consumen mil tokens en cada paso y el modelo empieza a elegir skills por intuición.\n\nElijas el diseño que elijas, obedece dos reglas. Primera: **exactamente una skill activa a la vez**, salvo que tengas un motivo probado para lo contrario. Dos skills activas significan dos conjuntos de instrucciones, dos listones de calidad y contradicciones que el modelo resuelve ignorando uno de ellos, normalmente el que necesitabas. Segunda: haz el enrutado *visible*: registra qué skill se eligió y por qué, y muéstralo en la interfaz. Cuando el harness responde a una pregunta de SQL con un poema, lo primero que compruebas es si se activó la skill equivocada. Si el enrutado es invisible, esa sesión de depuración dura una hora; si está registrado, dura diez segundos.\n\nLas skills también necesitan una vía de escape: un `general` de respaldo para peticiones que no encajan con nada, y una regla que permita al modelo *solicitar* un cambio de skill a mitad de tarea («esto ha resultado ser una tarea de programación») mientras el harness lo aprueba o lo deniega. Los cambios a mitad de tarea son potentes (una tarea de investigación que descubre que necesita código), pero los cambios ilimitados son la forma en que un harness quema 40 llamadas a herramientas vagando entre skills. Limita los cambios a dos o tres por tarea en la política, igual que las llamadas a herramientas.\n\nDiseña el respaldo de forma deliberada. La skill `general` no es «ninguna skill»: es una skill real con un briefing real (un método generalista competente, el conjunto completo de herramientas seguras y límites conservadores: menos llamadas máximas, ya que las tareas sin foco divagan). Registra cada activación del respaldo; si más del ~20 % de las tareas caen en `general`, tu catálogo tiene un hueco de cobertura, no un problema de enrutado. Y haz reproducibles las decisiones de enrutado: guarda en la traza la petición del usuario, las skills candidatas con sus puntuaciones y la ganadora. Cuando un usuario informe de que «antes escribía SQL genial y ahora escribe poesía», no conjeturas: abres la traza y ves que el clasificador eligió `creative-writer` con confianza 0,51 porque la petición mencionaba «historia trimestral». Los bugs de enrutado son bugs de prompt con pasos extra; las trazas los hacen corregibles.",
+      },
+      {
+        kind: "compare",
+        heading: "Skill frente a herramienta suelta frente a system prompt simple",
+        headers: ["System prompt simple", "Herramienta suelta", "Skill"],
+        rows: [
+          ["Un briefing largo para todo; se vuelve contradictorio", "Una capacidad sin método asociado", "Instrucciones curadas + herramientas acotadas + flujo de trabajo"],
+          ["Cargado siempre → impuesto permanente de tokens", "El modelo improvisa cómo usarla", "Cargada bajo demanda → prompt ligero por tarea"],
+          ["Sin aplicación: las instrucciones son sugerencias", "Sin protecciones más allá del propio código", "Política aplicada por el harness (límites, operaciones prohibidas)"],
+          ["Difícil de probar de forma aislada", "Probable, pero solo el mecanismo", "Versionada, probable como unidad de pericia"],
+          ["Úsalo para: identidad, tono, reglas globales", "Úsala para: capacidades atómicas", "Úsala para: trabajos completos bien hechos, de forma repetible"],
+        ],
+      },
+      {
+        kind: "code",
+        heading: "Un enrutador de skills mínimo con aplicación de política",
+        lang: "javascript",
+        code: "async function routeSkill(userRequest, skills, smallModel) {\n  // Fast path: keyword triggers declared by each skill.\n  const hits = skills.filter((s) =>\n    s.triggers.some((t) => userRequest.toLowerCase().includes(t))\n  );\n  if (hits.length === 1) return { skill: hits[0], reason: \"keyword\" };\n  // Fallback: ask a small, cheap model to choose from descriptions.\n  const choice = await smallModel.pickOne({\n    task: userRequest,\n    options: skills.map((s) => ({ name: s.name, description: s.description })),\n  });\n  return { skill: skills.find((s) => s.name === choice), reason: \"classifier\" };\n}\n\nfunction activateSkill(skill, harness) {\n  // Exactly one skill active: swap prompt addendum AND the tool registry.\n  harness.systemAddendum = skill.system_addendum;\n  harness.tools = Object.fromEntries(\n    Object.entries(harness.allTools).filter(([name]) => skill.tools.includes(name))\n  );\n  harness.policy = Object.assign({}, harness.policy, skill.policy);\n  harness.log(\"skill.activated\", { skill: skill.name, version: skill.version });\n}",
+        note: "Vía rápida por palabras clave, clasificador de respaldo, una sola skill activa y cada activación queda registrada con su versión.",
+      },
+      {
+        kind: "callout",
+        tone: "tip",
+        title: "Versionar las skills como software",
+        body: "Dale a cada skill una versión semver y nunca edites una versión activa en su lugar: data-analyst 1.3.0 queda congelada mientras redactas la 1.4.0. Fija la versión en la configuración de tu harness, mantén un changelog de lo que cambió («1.4.0: añadida política max_rows tras el incidente de las 2M de filas») y haz A/B de las versiones nuevas con un conjunto fijo de tareas de prueba antes de promocionarlas. Las skills son código de prompt: trata las regresiones en las instrucciones de una skill con la misma seriedad que las regresiones en código real, porque para el modelo son lo mismo.",
+      },
+    ],
+    takeaways: [
+      "Una skill empaqueta instrucciones curadas, herramientas acotadas y conocimiento del flujo en pericia instalable.",
+      "Enruta a exactamente una skill activa a la vez, y registra qué skill se eligió y por qué.",
+      "Aplica la política de la skill en el código del harness (límites, operaciones prohibidas), no solo en el texto del prompt.",
+      "Versiona las skills como software: semver, changelog, versiones congeladas, pruebas A/B antes de promocionar.",
+    ],
+    quiz: [
+      {
+        q: "¿Cuál es la diferencia esencial entre una herramienta y una skill?",
+        options: [
+          "Una herramienta es una capacidad; una skill empaqueta instrucciones, herramientas acotadas y conocimiento del flujo en pericia para un trabajo completo",
+          "Una skill solo puede usarse una vez por sesión",
+          "Las herramientas son para modelos, las skills son para humanos",
+          "Una skill se ejecuta más rápido que una herramienta",
+        ],
+        answer: 0,
+        why: "Una herramienta aporta una capacidad atómica sin método asociado. Una skill empaqueta el prompt curado, las herramientas relevantes y el conocimiento del orden de operaciones que convierte esas capacidades en una ejecución competente y repetible.",
+      },
+      {
+        q: "En el formato estilo SKILL.md, ¿para qué sirve la descripción de enrutado?",
+        options: [
+          "Se muestra al usuario final como documentación",
+          "El enrutador la lee para decidir qué skill encaja con una tarea; el prompt completo solo se carga tras la selección",
+          "Sustituye por completo al system prompt",
+          "Enumera el historial de versiones de la skill",
+        ],
+        answer: 1,
+        why: "Ese es el punto del enrutado con descripciones breves: el enrutador elige entre descripciones baratas y solo el prompt completo de la skill elegida entra en el contexto. Cargar el prompt completo de cada skill recrearía el problema del prompt ómnibus.",
+      },
+      {
+        q: "¿Por qué la política de una skill (máximo de llamadas, sentencias prohibidas) debe aplicarla el código del harness y no el texto del prompt?",
+        options: [
+          "El texto del prompt es invisible para el harness",
+          "El texto del prompt no puede expresar límites numéricos",
+          "El modelo trata las instrucciones del prompt como sugerencias y puede ignorarlas bajo presión; la aplicación por código es fiable",
+          "La aplicación por código hace que la skill corra más rápido",
+        ],
+        answer: 2,
+        why: "Las instrucciones de un prompt son orientativas: un modelo inmerso en un bucle de 25 pasos superará encantado una sugerencia de «máximo 12 llamadas». La aplicación en el harness (contadores, listas de bloqueo) convierte la política en una garantía.",
+      },
+      {
+        q: "Un harness tiene 15 skills y usa autoselección del modelo con todas las descripciones en el system prompt. ¿Cuál es el problema principal?",
+        options: [
+          "La autoselección es más lenta que el enrutado por clasificador",
+          "Las skills no se pueden versionar con autoselección",
+          "El modelo no puede leer más de 5 descripciones de skills",
+          "Las descripciones consumen más de 1.000 tokens en cada paso y el modelo empieza a elegir por intuición",
+        ],
+        answer: 3,
+        why: "Con unas 15 skills, solo las descripciones cuestan más de mil tokens en cada paso del bucle, y ante tanta opción el modelo elige de forma inconsistente. El enrutado por clasificador mantiene ligero el prompt principal.",
+      },
+      {
+        q: "¿Cuál es la regla recomendada sobre cuántas skills están activas a la vez?",
+        options: [
+          "Exactamente una, salvo motivo probado en contra: varias skills traen instrucciones contradictorias",
+          "Al menos tres, por redundancia",
+          "Cero: las skills nunca deben estar activas durante las llamadas a herramientas",
+          "Tantas como encajen, para dar al modelo el máximo contexto",
+        ],
+        answer: 0,
+        why: "Dos skills activas significan dos listones de calidad y dos conjuntos de instrucciones; el modelo resuelve las contradicciones ignorando una en silencio. Una sola skill activa mantiene el comportamiento predecible y depurable.",
+      },
+      {
+        q: "Un usuario pide «tendencias de ingresos trimestrales» y el enrutador por palabras clave coincide con data-analyst y report-writer. ¿Qué debe ocurrir?",
+        options: [
+          "Activar ambas skills a la vez",
+          "Recurrir al clasificador para elegir una, y registrar la elección con su motivo",
+          "Rechazar la petición por ambigua",
+          "Elegir una al azar para mantener baja la latencia",
+        ],
+        answer: 1,
+        why: "Las coincidencias ambiguas de palabras clave son justo para lo que sirve el clasificador de respaldo: una llamada barata al modelo resuelve el empate, y registrar la elección con su motivo hace auditable la decisión de enrutado cuando el comportamiento parece incorrecto.",
+      },
+      {
+        q: "¿Por qué las versiones de las skills deben congelarse en vez de editarse en su lugar?",
+        options: [
+          "La API del modelo exige números de versión",
+          "Los archivos congelados cargan más rápido del disco",
+          "Para poder fijar, comparar con A/B y revertir cambios de comportamiento como versiones de software",
+          "La especificación SKILL.md prohíbe editar",
+        ],
+        answer: 2,
+        why: "Las skills son código de prompt: una edición en su lugar cambia el comportamiento en silencio para cada tarea futura, sin forma de comparar ni revertir. Las versiones congeladas con changelogs y pruebas A/B hacen segura y medible la evolución de las skills.",
+      },
+      {
+        q: "¿Cuál es el riesgo de permitir cambios ilimitados de skill a mitad de tarea?",
+        options: [
+          "Los cambios de skill corrompen el registro de herramientas de forma permanente",
+          "Los cambios a mitad de tarea son imposibles de registrar",
+          "El harness se quedará sin skills a las que cambiar",
+          "El modelo puede quemar decenas de llamadas a herramientas vagando entre skills sin terminar nada",
+        ],
+        answer: 3,
+        why: "Cada cambio recarga instrucciones e invita a un nuevo comienzo, así que los cambios ilimitados se convierten en una forma cara de dar vueltas. Limitar los cambios a dos o tres por tarea en la política conserva la vía de escape sin el vagabundeo.",
+      },
+    ],
+  },
+};

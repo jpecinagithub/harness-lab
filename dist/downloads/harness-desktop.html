@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harness Lab — Desktop Harness</title>
+<style>
+:root{--bg:#0a0c11;--surface:#121722;--surface2:#171d2a;--border:#232b3b;--text:#e9ecf3;--muted:#9aa4b8;--accent:#ff7a1a;--teal:#2dd4bf;--ok:#4ade80;--err:#ff5c5c;--mono:ui-monospace,Menlo,Consolas,monospace}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;height:100vh;display:flex;flex-direction:column}
+header{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--border);background:var(--surface)}
+.logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#ff7a1a,#ff3d00);display:flex;align-items:center;justify-content:center;font-weight:800}
+h1{font-size:16px;margin:0}h1 small{display:block;font-size:11px;color:var(--muted);font-weight:400}
+.spacer{flex:1}.seg{display:flex;background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:3px}
+.seg button{border:0;background:transparent;color:var(--muted);font-weight:700;font-size:12px;padding:6px 14px;border-radius:999px;cursor:pointer}
+.seg button.on{background:var(--accent);color:#fff}
+#log{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:12px;max-width:860px;width:100%;margin:0 auto}
+.msg{max-width:82%;padding:11px 15px;border-radius:14px;font-size:14.5px;white-space:pre-line}
+.msg.user{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:4px}
+.msg.agent{align-self:flex-start;background:var(--surface2);border:1px solid var(--border);border-bottom-left-radius:4px}
+.trace{background:#0d1119;border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-top:10px;font-family:var(--mono);font-size:12px;display:none}
+.trace.open{display:block}.trace div{padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.t-turn{color:#ffb066;font-weight:700}.t-model{color:#82aaff}.t-tool{color:var(--teal);font-weight:700}.t-ok{color:var(--ok)}.t-err{color:var(--err)}
+.tbtn{background:none;border:1px solid var(--border);color:var(--muted);border-radius:8px;font-size:12px;padding:5px 10px;cursor:pointer;margin-top:8px}
+#bar{display:flex;gap:10px;padding:14px 20px;border-top:1px solid var(--border);background:var(--surface);max-width:860px;width:100%;margin:0 auto}
+#in{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:11px 14px;color:var(--text);font-size:14.5px}
+#send{background:var(--accent);border:0;color:#fff;border-radius:10px;padding:0 22px;font-weight:700;cursor:pointer}
+.hint{font-size:12px;color:var(--muted);text-align:center;padding:0 20px 12px;background:var(--surface)}
+.sug{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:8px 0}
+.sug button{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:999px;padding:7px 14px;font-size:13px;cursor:pointer}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">H</div>
+  <h1>HARNESS LAB · Desktop<small>The same harness as the academy — offline, single file</small></h1>
+  <div class="spacer"></div>
+  <div class="seg"><button id="bEn" class="on">EN</button><button id="bEs">ES</button></div>
+</header>
+<div id="log"></div>
+<div>
+  <div class="sug" id="sug"></div>
+  <div id="bar"><input id="in" autocomplete="off"><button id="send">➤</button></div>
+  <div class="hint" id="hint"></div>
+</div>
+<script>
+"use strict";
+/* The SAME main loop + tool set as the HARNESS LAB academy.
+   Simulated model (scripted intents) — zero cost, mechanics visible.
+   Memory persists in this browser's localStorage. */
+let LANG = 'en';
+const T = {
+  en: { ph: 'Calculate, remember, recall, note, search…', send: '➤',
+    hint: 'Simulated model for teaching — the loop is real. Memory lives in localStorage.',
+    trace: 'How the harness worked', hide: 'Hide trace',
+    sug: ['What is 144 / 12 + 7?', 'Remember that my ship is Aurora', 'What do you remember?', 'Search for MCP'],
+    fallback: 'I only act through tools here: ask me to calculate, remember, recall, note or search.',
+    sim: '(Simulated model — in production the LLM writes this.)' },
+  es: { ph: 'Calcula, recuerda, recupera, anota, busca…', send: '➤',
+    hint: 'Modelo simulado con fin didáctico — el bucle es real. La memoria vive en localStorage.',
+    trace: 'Cómo trabajó el harness', hide: 'Ocultar traza',
+    sug: ['¿Cuánto es 144 / 12 + 7?', 'Recuerda que mi nave es Aurora', '¿Qué recuerdas?', 'Busca MCP'],
+    fallback: 'Aquí solo actúo mediante tools: pídeme calcular, recordar, recuperar, anotar o buscar.',
+    sim: '(Modelo simulado — en producción el LLM escribe esto.)' }
+};
+const store = {
+  get: k => localStorage.getItem('hl-desktop:' + k),
+  set: (k, v) => localStorage.setItem('hl-desktop:' + k, v),
+  facts() { const o = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k.startsWith('hl-desktop:mem:')) o.push({ key: k.slice(16), value: localStorage.getItem(k) }); } return o; }
+};
+function safeCalc(input) {
+  const s = String(input).slice(0, 120).replace(/×/g, '*').replace(/÷/g, '/').replace(/\^/g, '**').replace(/,/g, '');
+  if (!/^[\d\s+\-*/().%^]+$/.test(s) || !/\d/.test(s) || !/[+\-*/%^]/.test(s)) throw new Error('not arithmetic');
+  const v = Function('"use strict";return(' + s + ')')();
+  if (typeof v !== 'number' || !isFinite(v)) throw new Error('not finite');
+  return Math.round(v * 1e10) / 1e10;
+}
+const DOCS = [
+  ['Main loop', 'messages → model → tool_calls → execute → append → repeat until final answer.'],
+  ['Tool calling', 'The model requests structured actions via JSON; the harness executes them.'],
+  ['MCP', 'Host → Client → Server over JSON-RPC; servers expose Tools, Resources, Prompts.'],
+  ['Memory', 'Short-term = context window; long-term = vector stores / memory tools.'],
+];
+const TOOLS = {
+  calculator: { run: async ({ expression }) => ({ expression, result: safeCalc(expression) }) },
+  memory_write: { run: async ({ key, value }) => { store.set('mem:' + key, value); return { stored: { key, value } }; } },
+  memory_read: { run: async ({ key }) => key ? { key, value: store.get('mem:' + key) } : { facts: store.facts() } },
+  notes_write: { run: async ({ text }) => { const n = JSON.parse(store.get('notes') || '[]'); n.push({ ts: new Date().toISOString(), text }); store.set('notes', JSON.stringify(n)); return { saved: text, total: n.length }; } },
+  web_search: { run: async ({ query }) => { const q = query.toLowerCase().split(/\s+/);
+    const results = DOCS.map(([title, snippet]) => ({ title, snippet, s: q.reduce((a, w) => a + (w.length > 2 && (title + snippet).toLowerCase().includes(w) ? 1 : 0), 0) }))
+      .filter(r => r.s > 0).sort((a, b) => b.s - a.s).slice(0, 2).map(({ title, snippet }) => ({ title, snippet }));
+    return { query, results }; } },
+};
+function detectIntents(text) {
+  const intents = []; const seen = new Set(); let m;
+  const re = /(\d+(?:\s*[+\-*/^%×÷]\s*\d+(?:\s*[+\-*/^%×÷]\s*\d+)*))/g;
+  while ((m = re.exec(text))) { try { safeCalc(m[1]); if (!seen.has(m[1])) { seen.add(m[1]); intents.push({ name: 'calculator', args: { expression: m[1].trim() } }); } } catch (e) {} }
+  const rm = text.match(/(remember|recuerda|recorda|guarda?|memoriza)[^.!\n]{0,6}(?:que|:)?\s*([^.!?\n]{3,160})/i);
+  if (rm) { const kv = rm[2].trim().match(/(?:my\s+)?([\wáéíóúñü ]{1,30}?)\s+(?:is|es|son)\s+(.+)/i);
+    let value = kv ? kv[2].trim() : rm[2].trim(); value = value.split(/,?\s*then\b/i)[0].trim();
+    intents.push({ name: 'memory_write', args: { key: kv ? kv[1].trim().toLowerCase() : 'fact', value } }); }
+  if (/(what did i tell you|what do you remember|qué te (dije|he dicho)|qué recuerdas|do you remember)/i.test(text)) intents.push({ name: 'memory_read', args: {} });
+  const nm = text.match(/(?:take a note|anota|nota):?\s*([^.!?\n]{3,200})/i);
+  if (nm && !rm) intents.push({ name: 'notes_write', args: { text: nm[1].trim() } });
+  const sm = text.match(/(?:search|busca|find|encuentra)(?:\s+(?:for|sobre|acerca\s+de))?\s+([^.!?\n]{2,80})/i);
+  if (sm) intents.push({ name: 'web_search', args: { query: sm[1].trim() } });
+  return intents;
+}
+async function MODEL(messages) {
+  const userText = [...messages].reverse().find(m => m.role === 'user').content;
+  const done = new Set(messages.flatMap(m => (m.tool_calls || []).map(tc => tc.name + JSON.stringify(tc.args))));
+  const pending = detectIntents(userText).filter(tc => !done.has(tc.name + JSON.stringify(tc.args)));
+  await new Promise(r => setTimeout(r, 200));
+  if (pending.length) return { toolCalls: pending };
+  const parts = [];
+  for (const m of messages) {
+    if (m.role !== 'tool') continue;
+    const d = JSON.parse(m.content);
+    if (m.name === 'calculator') parts.push(`${d.expression} = ${d.result}`);
+    else if (m.name === 'memory_write') parts.push(`✓ ${d.stored.key} = ${d.stored.value}`);
+    else if (m.name === 'memory_read') parts.push(d.facts.length ? d.facts.map(f => `• ${f.key}: ${f.value}`).join('\n') : '(memory empty)');
+    else if (m.name === 'notes_write') parts.push(`✓ noted (${d.total}): ${d.saved}`);
+    else if (m.name === 'web_search') parts.push(d.results.length ? d.results.map(r => `• ${r.title}: ${r.snippet}`).join('\n') : `(no docs for "${d.query}")`);
+  }
+  return { content: (parts.length ? parts.join('\n\n') : T[LANG].fallback) + '\n\n_' + T[LANG].sim + '_' };
+}
+async function agentLoop(userMessage, emit) {
+  const messages = [{ role: 'user', content: userMessage }];
+  for (let i = 1; i <= 6; i++) {
+    emit({ t: 'turn', i });
+    const res = await MODEL(messages);
+    emit({ t: 'model', n: (res.toolCalls || []).length });
+    if (!res.toolCalls || !res.toolCalls.length) { emit({ t: 'done', i }); return res.content; }
+    for (const tc of res.toolCalls) {
+      emit({ t: 'call', name: tc.name, args: tc.args });
+      let out;
+      try { out = await TOOLS[tc.name].run(tc.args); emit({ t: 'res', name: tc.name, ok: true, out: JSON.stringify(out).slice(0, 180) }); }
+      catch (e) { out = { error: String(e.message) }; emit({ t: 'res', name: tc.name, ok: false, out: out.error }); }
+      messages.push({ role: 'assistant', tool_calls: [tc] });
+      messages.push({ role: 'tool', name: tc.name, content: JSON.stringify(out) });
+    }
+  }
+  return '[max iterations]';
+}
+/* --- UI --- */
+const log = document.getElementById('log'), input = document.getElementById('in');
+function addMsg(role, html) { const d = document.createElement('div'); d.className = 'msg ' + role; d.innerHTML = html; log.appendChild(d); log.scrollTop = 1e6; return d; }
+function evLine(ev) {
+  if (ev.t === 'turn') return `<div><span class="t-turn">── turn ${ev.i} ──</span></div>`;
+  if (ev.t === 'model') return `<div><span class="t-model">◈ model</span> → ${ev.n} tool call(s)</div>`;
+  if (ev.t === 'call') return `<div><span class="t-tool">⚙ ${ev.name}</span> ${esc(JSON.stringify(ev.args))}</div>`;
+  if (ev.t === 'res') return `<div><span class="${ev.ok ? '' : 't-err'}">${ev.ok ? '↩' : '✖'} ${ev.name}</span>: ${esc(ev.out)}</div>`;
+  if (ev.t === 'done') return `<div><span class="t-ok">✔ done</span> · ${ev.i} iteration(s)</div>`;
+  return '';
+}
+const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+let busy = false;
+async function send(text) {
+  const q = (text !== undefined ? text : input.value).trim();
+  if (!q || busy) return;
+  busy = true; input.value = '';
+  addMsg('user', esc(q));
+  const evs = [];
+  const bubble = addMsg('agent', '<span style="color:var(--muted)">◌ …</span>');
+  const answer = await agentLoop(q, ev => evs.push(ev));
+  bubble.innerHTML = esc(answer).replace(/\n/g, '<br>') +
+    `<br><button class="tbtn">${T[LANG].trace}</button><div class="trace">${evs.map(evLine).join('')}</div>`;
+  const btn = bubble.querySelector('.tbtn'), tr = bubble.querySelector('.trace');
+  btn.onclick = () => { const o = tr.classList.toggle('open'); btn.textContent = o ? T[LANG].hide : T[LANG].trace; };
+  busy = false; input.focus();
+}
+document.getElementById('send').onclick = () => send();
+input.addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
+function renderSug() {
+  const s = document.getElementById('sug'); s.innerHTML = '';
+  T[LANG].sug.forEach(x => { const b = document.createElement('button'); b.textContent = x; b.onclick = () => send(x); s.appendChild(b); });
+  document.getElementById('hint').textContent = T[LANG].hint;
+  input.placeholder = T[LANG].ph;
+}
+document.getElementById('bEn').onclick = e => { LANG = 'en'; e.target.classList.add('on'); document.getElementById('bEs').classList.remove('on'); renderSug(); };
+document.getElementById('bEs').onclick = e => { LANG = 'es'; e.target.classList.add('on'); document.getElementById('bEn').classList.remove('on'); renderSug(); };
+renderSug(); input.focus();
+</script>
+</body>
+</html>

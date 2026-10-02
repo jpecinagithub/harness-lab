@@ -1,0 +1,307 @@
+// m23 — The CLI Harness
+// Level 6 · Ship It — "From laptop to the world"
+export default {
+  id: "m23",
+  level: 6,
+  n: 3,
+  icon: "Terminal",
+  sim: null,
+  en: {
+    title: "The CLI Harness",
+    tagline: "The same loop, third shell: a Node script with a real API key, a --mock mode, and a terminal UI.",
+    objectives: [
+      "Describe the anatomy of a Node CLI harness: loop, readline UI, tool registry, adapters.",
+      "Wire a real API key through environment variables to an OpenAI-compatible endpoint.",
+      "Use --mock mode for zero-key practice and keep one loop across all three shells.",
+    ],
+    sections: [
+      {
+        kind: "text",
+        heading: "Anatomy of a Node harness",
+        body: "The terminal is the third shell for the same agent *loop* (bucle) — after the browser (m21) and the single file (m22) — and for many builders it's the first one that feels like real infrastructure. A CLI *harness* (arnés) is a Node script, typically one file of 150–250 lines, that you run as `node harness.js`. No bundler, no framework: Node's standard library already provides everything — `readline` for input, `fetch` (global since Node 18) for the model API, `fs` for tools that touch the disk, `process.env` for secrets.\n\nThe anatomy mirrors the browser harness deliberately, because the goal is one loop, three shells. **The REPL driver** replaces the DOM: a `readline` loop reads a line, appends it to history, runs the agent loop, and prints the result. Streaming output (tokens printed as they arrive) is the terminal's killer feature — it turns a 20-second model call from dead silence into visible progress, and it's a one-line change with `fetch` + async iterators on SSE responses. **The tool registry** is the same `{ name, description, input_schema, run }` shape, but `run` can now touch the real machine: read and write files, run subprocesses, call `git`. That power is why the CLI harness is also where confirmation gates (m17) stop being optional: a terminal tool can `rm -rf` your project, so destructive tools get a `[y/N]` prompt in the terminal before executing.\n\n**The model adapter** is the same seam from m21 — `{ tool_calls, text }` in, normalized out — which means the adapter code is literally copy-pasteable between the browser and CLI versions. **The config layer** reads `process.env`: the API key, the endpoint URL, the model name, the max-iterations cap. Environment variables, not config files and never hardcoded strings, because the script will end up in git and keys in git are compromised keys.\n\nTwo things the terminal does better than the browser: **stdin/stdout composition** — pipe a file in, pipe the transcript out, chain the harness with `jq`, `grep`, and shell scripts, turning the agent into a Unix citizen; and **long sessions** — a terminal loop can run for an hour on a task while you watch, something a browser tab was never designed for. Two things it does worse: rich UI (you get text, and text is honest), and distribution (you're shipping a script that needs Node, not a URL).\n\nHandle signals like a grown-up process. A bare `readline` loop dies on Ctrl+C mid-tool-call, potentially leaving a half-written file or a half-finished API request. Add handlers: on `SIGINT`, set a flag, let the current tool call finish, write the transcript, print the session summary (steps, spend), then exit cleanly — the second Ctrl+C within two seconds forces immediate exit for the impatient. This is a five-line change that separates toys from tools: users *will* interrupt long runs, and a harness that corrupts state on interrupt teaches them not to trust it with anything important.",
+      },
+      {
+        kind: "code",
+        heading: "Node loop skeleton: readline REPL + streaming",
+        lang: "javascript",
+        code: "#!/usr/bin/env node\n// harness.js — the same loop, third shell. Node 18+ (global fetch).\nimport readline from \"node:readline\";\nimport { runLoop } from \"./loop.js\";       // shared with browser build\nimport { TOOLS } from \"./tools.js\";        // fs.*, shell.*, git.*\nimport { makeAdapter } from \"./adapter.js\"; // mock or OpenAI-compatible\n\nconst args = process.argv.slice(2);\nconst useMock = args.includes(\"--mock\");\nconst adapter = makeAdapter({\n  mock: useMock,\n  endpoint: process.env.HARNESS_API_BASE, // e.g. https://api.openai.com/v1\n  apiKey: process.env.HARNESS_API_KEY,    // never hardcoded, never in git\n  model: process.env.HARNESS_MODEL || \"gpt-4o-mini\",\n});\n\nconst rl = readline.createInterface({ input: process.stdin, output: process.stdout });\nconst history = [{ role: \"system\", content: \"You are a terminal assistant with tools.\" }];\n\nconsole.log(useMock ? \"[mock mode — no key, no cost]\" : `[live — ${process.env.HARNESS_MODEL}]`);\nrl.setPrompt(\"> \");\nrl.prompt();\nrl.on(\"line\", async (line) => {\n  if (line.trim() === \"/quit\") return rl.close();\n  history.push({ role: \"user\", content: line });\n  const answer = await runLoop({ messages: history, tools: TOOLS, model: adapter });\n  console.log(`\\n${answer}\\n`);\n  rl.prompt();\n});",
+        note: "REPL in ~30 lines: the loop, registry, and adapter are shared modules — only the I/O shell is new. Notice what's missing: no framework, no build step, no dependencies beyond Node itself.",
+      },
+      {
+        kind: "text",
+        heading: "Wiring a real key: env vars and OpenAI-compatible endpoints",
+        body: "Connecting the CLI harness to a real model is a configuration task, not a code task — which is exactly the point of the adapter seam. The script reads three environment variables and nothing else: `HARNESS_API_KEY` (the secret), `HARNESS_API_BASE` (the endpoint, defaulting to `https://api.openai.com/v1`), and `HARNESS_MODEL` (defaulting to something cheap like `gpt-4o-mini`). You export them in your shell profile or a `.env` file that is gitignored from day one — `echo \".env\" >> .gitignore` before the first commit, not after the first leak.\n\nThe `HARNESS_API_BASE` variable is doing quiet, important work: it makes the harness **provider-agnostic**. Any OpenAI-compatible endpoint works unchanged — OpenAI itself, Azure OpenAI, a local Ollama server at `http://localhost:11434/v1`, an OpenRouter or Together endpoint, your team's proxy. The adapter from m21 already speaks the `/chat/completions` dialect; pointing it at a different base URL is a one-variable change. This is why the earlier modules insisted on the normalized `{ tool_calls, text }` shape: provider quirks (different auth headers, different tool-call field names) get absorbed in the adapter, and the loop never knows or cares.\n\nThe `--mock` flag from the skeleton deserves emphasis because it's a workflow, not just a fallback. **Mock-first development** means every loop change — new retry logic, a new confirmation gate, a new tool — gets exercised against the deterministic mock before it touches a real key. The mock answers in milliseconds, costs nothing, and behaves identically every run, so your iteration loop is tight: edit, run `--mock`, observe, repeat. Only when the mechanics are right do you run live, and then the differences you observe (latency, cost, model quirks) are *model* differences, not loop bugs. Professional harness builders keep the mock permanently: it's the unit test for the loop that never goes stale.\n\nCost discipline in the terminal is concrete because the bills are real. Set a per-session budget in the config layer — say $2.00 default — and have the loop track estimated spend (input + output tokens × the model's published per-token price) and stop with a clear message when it's hit. Print running spend after every turn: `$0.023 / $2.00`. A harness that shows its meter is a harness its builder trusts; a harness without one is a surprise invoice waiting for a long night.\n\nImplement the meter with real token math, not vibes. The adapter already sees every request and response: count input tokens (a rough `Math.ceil(chars / 4)` estimate is fine for guardrails, or use a tokenizer for precision) and read output tokens from the API's `usage` field, multiply by the model's published per-token prices from your config, and accumulate per session. Print it after every turn and include it in the transcript footer. When the meter disagrees with the provider's bill by more than ~15%, your price table is stale — update it. The meter's job isn't accounting precision; it's early warning. A harness that says '$1.87 of $2.00' before step 24 is a harness that never surprises anyone.",
+      },
+      {
+        kind: "code",
+        heading: "Adapter factory: --mock and live behind one seam",
+        lang: "javascript",
+        code: "// adapter.js — one seam, two backends. The loop cannot tell them apart.\nexport function makeAdapter({ mock, endpoint, apiKey, model }) {\n  if (mock) return mockModel; // deterministic, free, from m21\n  if (!apiKey) {\n    throw new Error(\n      \"HARNESS_API_KEY is not set. Run with --mock for zero-key practice, \" +\n      \"or export HARNESS_API_KEY (see README).\"\n    );\n  }\n  return async (messages, tools) => {\n    const res = await fetch(`${endpoint}/chat/completions`, {\n      method: \"POST\",\n      headers: {\n        \"Content-Type\": \"application/json\",\n        Authorization: `Bearer ${apiKey}`,\n      },\n      body: JSON.stringify({\n        model,\n        messages,\n        tools: Object.values(tools).map((t) => ({\n          type: \"function\",\n          function: { name: t.name, description: t.description, parameters: t.input_schema },\n        })),\n      }),\n    });\n    if (res.status === 401) throw new Error(\"Invalid API key (401). Check HARNESS_API_KEY.\");\n    if (res.status === 429) throw new Error(\"Rate limited (429). Back off and retry.\");\n    if (!res.ok) throw new Error(`Model API error: ${res.status}`);\n    const msg = (await res.json()).choices[0].message;\n    return {\n      text: msg.content ?? \"\",\n      tool_calls: (msg.tool_calls ?? []).map((c) => ({\n        name: c.function.name,\n        args: JSON.parse(c.function.arguments || \"{}\"),\n      })),\n    };\n  };\n}",
+        note: "Missing key? Clear error pointing at --mock. Provider quirk? Absorbed here, never in the loop. The 401/429 branches are the difference between a 1am mystery and a five-second fix.",
+      },
+      {
+        kind: "callout",
+        tone: "tip",
+        title: "Terminal superpowers: pipes and sessions",
+        body: "Two things make the CLI shell worth building even after the browser one. Pipes: `cat report.md | node harness.js \"summarize this\"` and `node harness.js \"list todos\" | tee out.txt` turn the agent into a Unix citizen composable with jq, grep, and shell scripts. Sessions: a terminal loop can grind on a task for an hour with streaming output while you watch — no tab to keep alive, no page to refresh. Log every session to a transcript file (transcripts/ with timestamps); six months from now, those transcripts are your eval dataset and your debugging gold.",
+      },
+      {
+        kind: "checklist",
+        heading: "CLI harness checklist",
+        items: [
+          "One loop, three shells: loop/registry/adapter modules shared with the browser build, only I/O differs.",
+          "Secrets via HARNESS_API_KEY env var only — .env gitignored before the first commit, nothing hardcoded.",
+          "HARNESS_API_BASE makes the harness provider-agnostic (OpenAI, Azure, Ollama, OpenRouter, team proxy).",
+          "--mock mode works with zero key and zero cost; all loop changes are tested in mock first.",
+          "Destructive terminal tools sit behind a [y/N] confirmation gate — rm-capable tools are never one-shot.",
+          "Per-session spend budget with a live meter ($0.023 / $2.00); the loop stops cleanly at the cap.",
+        ],
+      },
+    ],
+    takeaways: [
+      "A CLI harness is the same loop with a readline REPL, streaming output, and real-machine tools.",
+      "Secrets live in environment variables; the base-URL variable makes the harness provider-agnostic.",
+      "--mock mode is a permanent workflow: test every loop change free before spending a cent.",
+      "Terminal tools can destroy real files — confirmation gates are mandatory, not optional.",
+    ],
+    quiz: [
+      {
+        q: "What does the CLI harness share with the browser harness by design?",
+        options: [
+          "The loop, tool registry shape, and model adapter seam — only the I/O shell differs",
+          "The API key storage mechanism",
+          "The localStorage database",
+          "The DOM and the CSS files",
+        ],
+        answer: 0,
+        why: "One loop, three shells: the loop driver, registry contract, and adapter interface are shared modules. The REPL replaces the DOM, but the agent mechanics are identical — that's what makes --mock testing transfer.",
+      },
+      {
+        q: "Why is streaming output called the terminal's killer feature?",
+        options: [
+          "It makes the model respond faster",
+          "It turns a 20-second silent model call into visible progress, token by token",
+          "It reduces token costs",
+          "Streaming is required by the MCP spec",
+        ],
+        answer: 1,
+        why: "Perceived latency dominates the terminal UX: watching tokens arrive keeps the builder oriented during long calls, versus staring at a blank prompt for 20 seconds wondering if the process hung.",
+      },
+      {
+        q: "Where must HARNESS_API_KEY live, and why?",
+        options: [
+          "Passed as a CLI flag on every invocation",
+          "Hardcoded in harness.js for convenience",
+          "In an environment variable (or gitignored .env) — the script will end up in git, and keys in git are compromised",
+          "In the README so teammates can copy it",
+        ],
+        answer: 2,
+        why: "Scripts get committed; committed keys get scraped. Env vars keep the secret out of the repo, and a gitignored .env from day one is the standard hygiene.",
+      },
+      {
+        q: "What does HARNESS_API_BASE buy you?",
+        options: [
+          "Automatic retry logic",
+          "Free API credits",
+          "Faster model responses",
+          "Provider agnosticism: any OpenAI-compatible endpoint (OpenAI, Azure, Ollama, proxies) works with a one-variable change",
+        ],
+        answer: 3,
+        why: "Because the adapter speaks the /chat/completions dialect, swapping providers is just a base-URL change. Provider quirks stay absorbed in the adapter; the loop never changes.",
+      },
+      {
+        q: "What is 'mock-first development' in the CLI harness workflow?",
+        options: [
+          "Exercising every loop change against the deterministic mock before touching a real key — fast, free, reproducible",
+          "Using the mock only when the API is down",
+          "Mocking the user's input instead of the model",
+          "Writing the mock after the live version is done",
+        ],
+        answer: 0,
+        why: "The mock answers in milliseconds at zero cost with identical behavior every run, so the edit-run-observe loop is tight. Live runs then reveal model differences, not loop bugs.",
+      },
+      {
+        q: "Why are confirmation gates mandatory (not optional) for CLI tools?",
+        options: [
+          "The terminal is slower than the browser",
+          "Terminal tools touch the real machine — a model-invoked rm -rf destroys actual files",
+          "Gates are required for --mock mode",
+          "Confirmation gates reduce token usage",
+        ],
+        answer: 1,
+        why: "Browser tools live in a sandbox; CLI tools run with the user's full privileges. A destructive tool without a [y/N] gate is an accident waiting for a misread argument.",
+      },
+      {
+        q: "The adapter throws 'Rate limited (429). Back off and retry.' Why handle 429 explicitly instead of a generic error?",
+        options: [
+          "429 means the API key is invalid",
+          "429 errors are unrecoverable",
+          "A specific message tells the operator exactly what happened and what to do, instead of a cryptic status code",
+          "The loop automatically retries 429s",
+        ],
+        answer: 2,
+        why: "Error-as-feedback discipline (m17) applies to operators too: 'rate limited, back off and retry' is actionable; 'Model API error: 429' sends the builder hunting through docs at 1am.",
+      },
+      {
+        q: "Why log every CLI session to a timestamped transcript file?",
+        options: [
+          "Logging makes the harness run faster",
+          "Transcripts replace the need for --mock mode",
+          "Transcripts are required for the loop to function",
+          "They become your future eval dataset and debugging gold — real trajectories to test against",
+        ],
+        answer: 3,
+        why: "Real session transcripts are the raw material for harness evals (m24): replay them against new loop versions to catch regressions. A harness that doesn't log its own behavior can't be improved systematically.",
+      },
+    ],
+  },
+  es: {
+    title: "El harness CLI",
+    tagline: "El mismo bucle, tercer shell: un script de Node con una clave API real, un modo --mock y una interfaz de terminal.",
+    objectives: [
+      "Describir la anatomía de un harness CLI en Node: bucle, interfaz readline, registro de herramientas, adaptadores.",
+      "Conectar una clave API real mediante variables de entorno a un endpoint compatible con OpenAI.",
+      "Usar el modo --mock para practicar sin clave y mantener un solo bucle en los tres shells.",
+    ],
+    sections: [
+      {
+        kind: "text",
+        heading: "Anatomía de un harness en Node",
+        body: "El terminal es el tercer shell para el mismo *loop* (bucle) de agente (tras el navegador de m21 y el archivo único de m22), y para muchos constructores es el primero que se siente como infraestructura de verdad. Un *harness* (arnés) CLI es un script de Node, normalmente un archivo de 150–250 líneas, que se ejecuta como `node harness.js`. Sin empaquetador ni framework: la biblioteca estándar de Node ya aporta todo: `readline` para la entrada, `fetch` (global desde Node 18) para la API del modelo, `fs` para herramientas que tocan el disco, `process.env` para los secretos.\n\nLa anatomía refleja deliberadamente la del harness de navegador, porque el objetivo es un bucle y tres shells. **El conductor REPL** sustituye al DOM: un bucle `readline` lee una línea, la añade al historial, ejecuta el bucle del agente e imprime el resultado. La salida en streaming (tokens impresos según llegan) es la funcionalidad estrella del terminal: convierte una llamada al modelo de 20 segundos de silencio mortal en progreso visible, y es un cambio de una línea con `fetch` e iteradores asíncronos sobre respuestas SSE. **El registro de herramientas** tiene la misma forma `{ name, description, input_schema, run }`, pero `run` ya puede tocar la máquina real: leer y escribir archivos, lanzar subprocesos, llamar a `git`. Ese poder hace que el harness CLI sea también donde las puertas de confirmación (m17) dejan de ser opcionales: una herramienta de terminal puede hacer `rm -rf` de tu proyecto, así que las herramientas destructivas piden `[y/N]` en el terminal antes de ejecutarse.\n\n**El adaptador del modelo** es la misma costura de m21 (`{ tool_calls, text }` dentro, normalizado fuera), lo que significa que el código del adaptador se puede copiar y pegar entre las versiones de navegador y CLI. **La capa de configuración** lee `process.env`: la clave API, la URL del endpoint, el nombre del modelo, el tope de iteraciones. Variables de entorno, no archivos de configuración y nunca cadenas fijas en el código, porque el script acabará en git y las claves en git son claves comprometidas.\n\nDos cosas que el terminal hace mejor que el navegador: **composición stdin/stdout** (redirigir un archivo dentro, el transcript fuera, encadenar el harness con `jq`, `grep` y scripts de shell, convirtiendo al agente en un ciudadano Unix) y **sesiones largas** (un bucle de terminal puede trabajar una hora en una tarea mientras miras, algo para lo que una pestaña de navegador nunca se diseñó). Dos cosas que hace peor: interfaz rica (tienes texto, y el texto es honesto) y distribución (distribuyes un script que necesita Node, no una URL).\n\nGestiona las señales como un proceso adulto. Un bucle `readline` simple muere con Ctrl+C a mitad de una llamada a herramienta, dejando quizá un archivo a medio escribir o una petición API a medias. Añade manejadores: ante `SIGINT`, activa un flag, deja terminar la llamada actual, escribe el transcript, imprime el resumen de sesión (pasos, gasto) y sale limpiamente; el segundo Ctrl+C en dos segundos fuerza la salida inmediata para impacientes. Es un cambio de cinco líneas que separa juguetes de herramientas: los usuarios *interrumpirán* ejecuciones largas, y un *harness* que corrompe el estado al interrumpirse les enseña a no confiarle nada importante.",
+      },
+      {
+        kind: "code",
+        heading: "Esqueleto del bucle en Node: REPL readline + streaming",
+        lang: "javascript",
+        code: "#!/usr/bin/env node\n// harness.js — the same loop, third shell. Node 18+ (global fetch).\nimport readline from \"node:readline\";\nimport { runLoop } from \"./loop.js\";       // shared with browser build\nimport { TOOLS } from \"./tools.js\";        // fs.*, shell.*, git.*\nimport { makeAdapter } from \"./adapter.js\"; // mock or OpenAI-compatible\n\nconst args = process.argv.slice(2);\nconst useMock = args.includes(\"--mock\");\nconst adapter = makeAdapter({\n  mock: useMock,\n  endpoint: process.env.HARNESS_API_BASE, // e.g. https://api.openai.com/v1\n  apiKey: process.env.HARNESS_API_KEY,    // never hardcoded, never in git\n  model: process.env.HARNESS_MODEL || \"gpt-4o-mini\",\n});\n\nconst rl = readline.createInterface({ input: process.stdin, output: process.stdout });\nconst history = [{ role: \"system\", content: \"You are a terminal assistant with tools.\" }];\n\nconsole.log(useMock ? \"[mock mode — no key, no cost]\" : `[live — ${process.env.HARNESS_MODEL}]`);\nrl.setPrompt(\"> \");\nrl.prompt();\nrl.on(\"line\", async (line) => {\n  if (line.trim() === \"/quit\") return rl.close();\n  history.push({ role: \"user\", content: line });\n  const answer = await runLoop({ messages: history, tools: TOOLS, model: adapter });\n  console.log(`\\n${answer}\\n`);\n  rl.prompt();\n});",
+        note: "REPL en unas 30 líneas: el bucle, el registro y el adaptador son módulos compartidos; solo la E/S del shell es nueva. Fíjate en lo que falta: sin framework, sin paso de compilación, sin dependencias más allá del propio Node.",
+      },
+      {
+        kind: "text",
+        heading: "Conectar una clave real: variables de entorno y endpoints compatibles con OpenAI",
+        body: "Conectar el harness CLI a un modelo real es una tarea de configuración, no de código, que es justo el sentido de la costura del adaptador. El script lee tres variables de entorno y nada más: `HARNESS_API_KEY` (el secreto), `HARNESS_API_BASE` (el endpoint, con valor por defecto `https://api.openai.com/v1`) y `HARNESS_MODEL` (con un valor barato por defecto como `gpt-4o-mini`). Las exportas en tu perfil del shell o en un archivo `.env` ignorado por git desde el primer día: `echo \".env\" >> .gitignore` antes del primer commit, no después de la primera filtración.\n\nLa variable `HARNESS_API_BASE` hace un trabajo silencioso e importante: vuelve al harness **agnóstico al proveedor**. Cualquier endpoint compatible con OpenAI funciona sin cambios: OpenAI, Azure OpenAI, un servidor local de Ollama en `http://localhost:11434/v1`, un endpoint de OpenRouter o Together, el proxy de tu equipo. El adaptador de m21 ya habla el dialecto `/chat/completions`; apuntarlo a otra URL base es cambiar una variable. Por eso los módulos anteriores insistían en la forma normalizada `{ tool_calls, text }`: las peculiaridades del proveedor (distintas cabeceras de auth, distintos nombres de campo para tool calls) se absorben en el adaptador, y el bucle ni lo sabe ni le importa.\n\nEl flag `--mock` del esqueleto merece énfasis porque es un flujo de trabajo, no solo un recurso de emergencia. El **desarrollo mock-first** significa que cada cambio en el bucle (nueva lógica de reintentos, nueva puerta de confirmación, nueva herramienta) se ejercita contra el simulado determinista antes de tocar una clave real. El simulado responde en milisegundos, cuesta nada y se comporta igual en cada ejecución, así que tu ciclo de iteración es ajustado: edita, ejecuta `--mock`, observa, repite. Solo cuando la mecánica está bien ejecutas en vivo, y entonces las diferencias que observes (latencia, coste, peculiaridades del modelo) son diferencias *del modelo*, no bugs del bucle. Los constructores profesionales de harness conservan el simulado para siempre: es la prueba unitaria del bucle que nunca caduca.\n\nLa disciplina de costes en el terminal es concreta porque las facturas son reales. Fija un presupuesto por sesión en la capa de configuración (digamos 2,00 $ por defecto) y haz que el bucle controle el gasto estimado (tokens de entrada y salida × el precio por token publicado del modelo) y se detenga con un mensaje claro al alcanzarlo. Imprime el gasto acumulado tras cada turno: `0,023 $ / 2,00 $`. Un harness que muestra su contador es un harness en el que su constructor confía; uno sin contador es una factura sorpresa esperando una noche larga.\n\nImplementa el contador con matemática real de tokens, no con intuición. El adaptador ya ve cada petición y respuesta: cuenta los tokens de entrada (una estimación aproximada `Math.ceil(chars / 4)` basta para protecciones, o usa un tokenizador para precisión) y lee los tokens de salida del campo `usage` de la API, multiplica por los precios por token publicados del modelo desde tu configuración y acumula por sesión. Imprímelo tras cada turno e inclúyelo en el pie del transcript. Cuando el contador discrepe de la factura del proveedor en más de un ~15 %, tu tabla de precios está desactualizada: actualízala. El trabajo del contador no es la precisión contable; es la alerta temprana. Un *harness* que dice «1,87 $ de 2,00 $» antes del paso 24 es un *harness* que nunca sorprende a nadie.",
+      },
+      {
+        kind: "code",
+        heading: "Factoría de adaptadores: --mock y en vivo tras una costura",
+        lang: "javascript",
+        code: "// adapter.js — one seam, two backends. The loop cannot tell them apart.\nexport function makeAdapter({ mock, endpoint, apiKey, model }) {\n  if (mock) return mockModel; // deterministic, free, from m21\n  if (!apiKey) {\n    throw new Error(\n      \"HARNESS_API_KEY is not set. Run with --mock for zero-key practice, \" +\n      \"or export HARNESS_API_KEY (see README).\"\n    );\n  }\n  return async (messages, tools) => {\n    const res = await fetch(`${endpoint}/chat/completions`, {\n      method: \"POST\",\n      headers: {\n        \"Content-Type\": \"application/json\",\n        Authorization: `Bearer ${apiKey}`,\n      },\n      body: JSON.stringify({\n        model,\n        messages,\n        tools: Object.values(tools).map((t) => ({\n          type: \"function\",\n          function: { name: t.name, description: t.description, parameters: t.input_schema },\n        })),\n      }),\n    });\n    if (res.status === 401) throw new Error(\"Invalid API key (401). Check HARNESS_API_KEY.\");\n    if (res.status === 429) throw new Error(\"Rate limited (429). Back off and retry.\");\n    if (!res.ok) throw new Error(`Model API error: ${res.status}`);\n    const msg = (await res.json()).choices[0].message;\n    return {\n      text: msg.content ?? \"\",\n      tool_calls: (msg.tool_calls ?? []).map((c) => ({\n        name: c.function.name,\n        args: JSON.parse(c.function.arguments || \"{}\"),\n      })),\n    };\n  };\n}",
+        note: "¿Falta la clave? Error claro que apunta a --mock. ¿Peculiaridad del proveedor? Se absorbe aquí, nunca en el bucle. Las ramas 401/429 son la diferencia entre un misterio a la 1 de la madrugada y una corrección de cinco segundos.",
+      },
+      {
+        kind: "callout",
+        tone: "tip",
+        title: "Superpoderes del terminal: tuberías y sesiones",
+        body: "Dos cosas hacen que el shell CLI merezca construirse incluso después del de navegador. Tuberías: `cat report.md | node harness.js \"resume esto\"` y `node harness.js \"lista tareas\" | tee out.txt` convierten al agente en un ciudadano Unix componible con jq, grep y scripts de shell. Sesiones: un bucle de terminal puede trabajar una hora en una tarea con salida en streaming mientras miras: sin pestaña que mantener viva ni página que recargar. Registra cada sesión en un archivo de transcript (transcripts/ con marcas de tiempo); dentro de seis meses, esos transcripts serán tu dataset de evaluación y tu oro para depurar.",
+      },
+      {
+        kind: "checklist",
+        heading: "Lista del harness CLI",
+        items: [
+          "Un bucle, tres shells: los módulos de bucle, registro y adaptador se comparten con la versión de navegador; solo difiere la E/S.",
+          "Secretos solo vía la variable HARNESS_API_KEY: .env ignorado por git antes del primer commit, nada fijo en el código.",
+          "HARNESS_API_BASE vuelve al harness agnóstico al proveedor (OpenAI, Azure, Ollama, OpenRouter, proxy del equipo).",
+          "El modo --mock funciona sin clave y sin coste; cada cambio del bucle se prueba primero en simulado.",
+          "Las herramientas destructivas de terminal están tras una puerta de confirmación [y/N]: las herramientas capaces de rm nunca son de un solo paso.",
+          "Presupuesto de gasto por sesión con contador en vivo (0,023 $ / 2,00 $); el bucle se detiene limpiamente al llegar al tope.",
+        ],
+      },
+    ],
+    takeaways: [
+      "Un harness CLI es el mismo bucle con un REPL readline, salida en streaming y herramientas de máquina real.",
+      "Los secretos viven en variables de entorno; la variable de URL base vuelve al harness agnóstico al proveedor.",
+      "El modo --mock es un flujo permanente: prueba cada cambio del bucle gratis antes de gastar un céntimo.",
+      "Las herramientas de terminal pueden destruir archivos reales: las puertas de confirmación son obligatorias, no opcionales.",
+    ],
+    quiz: [
+      {
+        q: "¿Qué comparte por diseño el harness CLI con el harness de navegador?",
+        options: [
+          "El bucle, la forma del registro de herramientas y la costura del adaptador del modelo: solo difiere el shell de E/S",
+          "El mecanismo de almacenamiento de la clave API",
+          "La base de datos localStorage",
+          "El DOM y los archivos CSS",
+        ],
+        answer: 0,
+        why: "Un bucle, tres shells: el conductor del bucle, el contrato del registro y la interfaz del adaptador son módulos compartidos. El REPL sustituye al DOM, pero la mecánica del agente es idéntica, y eso hace que las pruebas con --mock sean transferibles.",
+      },
+      {
+        q: "¿Por qué la salida en streaming se llama la funcionalidad estrella del terminal?",
+        options: [
+          "Hace que el modelo responda más rápido",
+          "Convierte 20 segundos de llamada silenciosa al modelo en progreso visible, token a token",
+          "Reduce los costes en tokens",
+          "El streaming lo exige la especificación MCP",
+        ],
+        answer: 1,
+        why: "La latencia percibida domina la UX del terminal: ver llegar los tokens mantiene orientado al constructor durante llamadas largas, frente a mirar un prompt en blanco 20 segundos preguntándose si el proceso se colgó.",
+      },
+      {
+        q: "¿Dónde debe vivir HARNESS_API_KEY y por qué?",
+        options: [
+          "Como flag de CLI en cada invocación",
+          "Fija en el código de harness.js, por comodidad",
+          "En una variable de entorno (o .env ignorado por git): el script acabará en git, y las claves en git están comprometidas",
+          "En el README para que los compañeros la copien",
+        ],
+        answer: 2,
+        why: "Los scripts se publican en commits; las claves publicadas se rastrean. Las variables de entorno mantienen el secreto fuera del repo, y un .env ignorado por git desde el primer día es la higiene estándar.",
+      },
+      {
+        q: "¿Qué te aporta HARNESS_API_BASE?",
+        options: [
+          "Lógica automática de reintentos",
+          "Créditos gratuitos de API",
+          "Respuestas más rápidas del modelo",
+          "Agnosticismo al proveedor: cualquier endpoint compatible con OpenAI (OpenAI, Azure, Ollama, proxies) funciona cambiando una variable",
+        ],
+        answer: 3,
+        why: "Como el adaptador habla el dialecto /chat/completions, cambiar de proveedor es solo cambiar la URL base. Las peculiaridades del proveedor quedan absorbidas en el adaptador; el bucle nunca cambia.",
+      },
+      {
+        q: "¿Qué es el «desarrollo mock-first» en el flujo del harness CLI?",
+        options: [
+          "Ejercitar cada cambio del bucle contra el simulado determinista antes de tocar una clave real: rápido, gratis, reproducible",
+          "Usar el simulado solo cuando la API está caída",
+          "Simular la entrada del usuario en vez del modelo",
+          "Escribir el simulado después de terminar la versión en vivo",
+        ],
+        answer: 0,
+        why: "El simulado responde en milisegundos sin coste y con comportamiento idéntico en cada ejecución, así que el ciclo editar-ejecutar-observar es ajustado. Las ejecuciones en vivo revelan entonces diferencias del modelo, no bugs del bucle.",
+      },
+      {
+        q: "¿Por qué las puertas de confirmación son obligatorias (no opcionales) para las herramientas CLI?",
+        options: [
+          "El terminal es más lento que el navegador",
+          "Las herramientas de terminal tocan la máquina real: un rm -rf invocado por el modelo destruye archivos de verdad",
+          "Las puertas son obligatorias para el modo --mock",
+          "Las puertas de confirmación reducen el uso de tokens",
+        ],
+        answer: 1,
+        why: "Las herramientas de navegador viven en un aislamiento; las de CLI corren con todos los privilegios del usuario. Una herramienta destructiva sin puerta [y/N] es un accidente esperando un argumento mal leído.",
+      },
+      {
+        q: "El adaptador lanza «Rate limited (429). Back off and retry.» ¿Por qué gestionar el 429 explícitamente en vez de un error genérico?",
+        options: [
+          "429 significa que la clave API no es válida",
+          "Los errores 429 son irrecuperables",
+          "Un mensaje específico dice al operador exactamente qué pasó y qué hacer, en vez de un críptico código de estado",
+          "El bucle reintenta automáticamente los 429",
+        ],
+        answer: 2,
+        why: "La disciplina del error como retroalimentación (m17) aplica también a los operadores: «límite de tasa, espera y reintenta» es accionable; «Model API error: 429» manda al constructor a buscar en la documentación a la 1 de la madrugada.",
+      },
+      {
+        q: "¿Por qué registrar cada sesión CLI en un archivo de transcript con marca de tiempo?",
+        options: [
+          "Registrar hace que el harness corra más rápido",
+          "Los transcripts sustituyen la necesidad del modo --mock",
+          "Los transcripts son obligatorios para que el bucle funcione",
+          "Se convierten en tu futuro dataset de evaluación y en oro para depurar: trayectorias reales contra las que probar",
+        ],
+        answer: 3,
+        why: "Los transcripts de sesiones reales son la materia prima para las evaluaciones del harness (m24): reprodúcelos contra nuevas versiones del bucle para detectar regresiones. Un harness que no registra su propio comportamiento no puede mejorarse de forma sistemática.",
+      },
+    ],
+  },
+};
