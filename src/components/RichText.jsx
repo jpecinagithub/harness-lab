@@ -88,11 +88,14 @@ export default function RichText({ sections, simSlot = null }) {
             </div>
           );
         } else if (s.kind === 'compare') {
+          // Defensive: some tables use the first column as row labels
+          // with no header for it — render a blank corner cell then.
+          const headers = s.headers.length === s.rows[0].length - 1 ? [''].concat(s.headers) : s.headers;
           el = (
             <div key={i}>
               {s.heading && <h2>{s.heading}</h2>}
               <table className="compare-table">
-                <thead><tr>{s.headers.map((h, k) => <th key={k}>{h}</th>)}</tr></thead>
+                <thead><tr>{headers.map((h, k) => <th key={k}>{h}</th>)}</tr></thead>
                 <tbody>{s.rows.map((r, k) => <tr key={k}>{r.map((c, j) => <td key={j}>{inlineFmt(c)}</td>)}</tr>)}</tbody>
               </table>
             </div>
