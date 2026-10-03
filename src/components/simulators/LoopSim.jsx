@@ -38,7 +38,7 @@ const STR = {
 const LOG = [
   { cls: 't-turn', en: '▶ turn 1 — messages[] has 1 message (user)', es: '▶ turno 1 — messages[] tiene 1 mensaje (user)' },
   { cls: 't-model', en: '◈ model call → tool_calls: [memory_write, calculator] (parallel)', es: '◈ llamada al modelo → tool_calls: [memory_write, calculator] (en paralelo)' },
-  { cls: 't-tool', en: '⚙ memory_write {key:"launch code", value:"4177"} → ok', es: '⚙ memory_write {key:"launch code", value:"4177"} → ok' },
+  { cls: 't-tool', en: '⚙ memory_write {key:"the launch code", value:"4177"} → ok', es: '⚙ memory_write {key:"código de lanzamiento", value:"4177"} → ok' },
   { cls: 't-tool', en: '⚙ calculator {expression:"12 * 8"} → 96', es: '⚙ calculator {expression:"12 * 8"} → 96' },
   { cls: 't-model', en: '◈ model call → no tool calls → final answer', es: '◈ llamada al modelo → sin tool calls → respuesta final' },
   { cls: 't-ok', en: '✔ done in 2 iterations · ~1.2k tokens (est.)', es: '✔ fin en 2 iteraciones · ~1,2k tokens (est.)' },
