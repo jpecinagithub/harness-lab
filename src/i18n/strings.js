@@ -89,6 +89,12 @@ export const STRINGS = {
       honest: 'Honest limits: the in-browser and desktop demos use a simulated model (scripted intents) so the mechanics are visible with zero cost. The CLI accepts a real API key — then it is a genuine production-style harness.',
     },
     footer: { built: 'Built with the same stack as the academy that inspired it · Vite + React · no backend' },
+    author: {
+      title: 'Author',
+      name: 'Jon Peciña',
+      bio: 'Industrial Engineer turned AI Engineer. I design and build complete applications with React, Node.js and AI-accelerated workflows — and I write about the engineering behind them.',
+      contact: 'Contact',
+    },
   },
   es: {
     nav: {
@@ -179,5 +185,11 @@ export const STRINGS = {
       honest: 'Límites honestos: las demos de navegador y escritorio usan un modelo simulado (intenciones programadas) para que la mecánica sea visible con coste cero. La CLI acepta una clave API real — entonces es un harness genuino estilo producción.',
     },
     footer: { built: 'Construido con el mismo stack que la academia que lo inspiró · Vite + React · sin backend' },
+    author: {
+      title: 'Autor',
+      name: 'Jon Peciña',
+      bio: 'Ingeniero Industrial convertido en AI Engineer. Diseño y construyo aplicaciones completas con React, Node.js y flujos de trabajo acelerados por IA — y escribo sobre la ingeniería que hay detrás.',
+      contact: 'Contacto',
+    },
   },
 };
