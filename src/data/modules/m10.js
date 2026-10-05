@@ -67,20 +67,20 @@ export default {
     quiz: [
       {
         q: "In the plan-and-execute pattern, when should the loop replan?",
-        options: ["After every single execution step, to stay maximally adaptive", "On a fixed schedule of every 5 steps", "Only when an observation shows meaningful deviation: a blocked step, unexpected output, or executor drift", "Never — replanning indicates the planner failed"],
-        answer: 2,
+        options: ["Never — replanning indicates the planner failed", "After every single execution step, to stay maximally adaptive", "On a fixed schedule of every 5 steps", "Only when an observation shows meaningful deviation: a blocked step, unexpected output, or executor drift"],
+        answer: 3,
         why: "Replanning is expensive and each replan is a structural event. Triggering only on meaningful deviation keeps the loop stable and the audit trail honest."
       },
       {
         q: "Which task is the best candidate for promoting the planner to a separate model call?",
-        options: ["A 20-step research task where failures come from the model losing the overall strategy mid-task", "A 4-step task that copies a file and restarts a service", "A task where the tools are slow but the strategy is trivial", "A single-turn question-answering task"],
-        answer: 0,
+        options: ["A 4-step task that copies a file and restarts a service", "A task where the tools are slow but the strategy is trivial", "A single-turn question-answering task", "A 20-step research task where failures come from the model losing the overall strategy mid-task"],
+        answer: 3,
         why: "Long tasks with plan-drift failures are exactly what a separate planning call fixes. Short or tool-bound tasks gain nothing from the extra call and latency."
       },
       {
         q: "Why might you use a larger model for planning and a smaller one for execution?",
-        options: ["Larger models cannot call tools, so they must plan", "Planning is reasoning-heavy but low-volume: one 2,000-token plan can steer twenty cheap execution steps", "Small models are incapable of following plans", "It doubles the context window automatically"],
-        answer: 1,
+        options: ["Planning is reasoning-heavy but low-volume: one 2,000-token plan can steer twenty cheap execution steps", "Small models are incapable of following plans", "It doubles the context window automatically", "Larger models cannot call tools, so they must plan"],
+        answer: 0,
         why: "The cost-optimal split concentrates expensive reasoning where leverage is highest — the plan — while high-volume execution runs cheap. The other options are false."
       },
       {
@@ -91,8 +91,8 @@ export default {
       },
       {
         q: "A task replans 8 times and still fails. The most likely diagnosis is…",
-        options: ["The replan cap is too low and should be raised to 20", "Wrong plan granularity or a task that was never plannable — not a need for more replanning", "The executor's temperature is too low", "The plan needs more steps added blindly"],
-        answer: 1,
+        options: ["The plan needs more steps added blindly", "The replan cap is too low and should be raised to 20", "Wrong plan granularity or a task that was never plannable — not a need for more replanning", "The executor's temperature is too low"],
+        answer: 2,
         why: "Constant replanning is a signal, not a fix: the steps are too brittle or the environment too chaotic for planning to help. Raising the cap just burns tokens."
       },
       {
@@ -103,8 +103,8 @@ export default {
       },
       {
         q: "Why keep tool schemas out of the planner's prompt?",
-        options: ["Tool schemas are secret and must never be shown to any model", "To keep the planning context small and the strategy sharp; the executor owns tool details", "Planners are legally forbidden from calling tools", "Schemas make the planner slower at arithmetic"],
-        answer: 3,
+        options: ["To keep the planning context small and the strategy sharp; the executor owns tool details", "Planners are legally forbidden from calling tools", "Schemas make the planner slower at arithmetic", "Tool schemas are secret and must never be shown to any model"],
+        answer: 2,
         why: "Separation of concerns: the planner reasons about strategy, the executor about tool mechanics. Mixing them reintroduces the mixed-concerns symptom the second loop was meant to fix."
       },
       {
@@ -177,14 +177,14 @@ export default {
     quiz: [
       {
         q: "En el patrón planificar-y-ejecutar, ¿cuándo debe replanificar el bucle?",
-        options: ["Tras cada paso de ejecución, para máxima adaptabilidad", "Con un calendario fijo cada 5 pasos", "Solo cuando una observación muestre una desviación significativa: paso bloqueado, salida inesperada o deriva del ejecutor", "Nunca: replanificar indica que el planificador falló"],
-        answer: 2,
+        options: ["Solo cuando una observación muestre una desviación significativa: paso bloqueado, salida inesperada o deriva del ejecutor", "Nunca: replanificar indica que el planificador falló", "Tras cada paso de ejecución, para máxima adaptabilidad", "Con un calendario fijo cada 5 pasos"],
+        answer: 0,
         why: "Replanificar es caro y cada replanificación es un evento estructural. Dispararla solo ante desviaciones significativas mantiene el bucle estable y honesta la pista de auditoría."
       },
       {
         q: "¿Qué tarea es la mejor candidata para promover el planificador a una llamada al modelo separada?",
-        options: ["Una tarea de investigación de 20 pasos donde los fallos vienen de que el modelo pierde la estrategia global a mitad de tarea", "Una tarea de 4 pasos que copia un fichero y reinicia un servicio", "Una tarea donde las herramientas son lentas pero la estrategia es trivial", "Una tarea de pregunta-respuesta de un solo turno"],
-        answer: 0,
+        options: ["Una tarea donde las herramientas son lentas pero la estrategia es trivial", "Una tarea de pregunta-respuesta de un solo turno", "Una tarea de investigación de 20 pasos donde los fallos vienen de que el modelo pierde la estrategia global a mitad de tarea", "Una tarea de 4 pasos que copia un fichero y reinicia un servicio"],
+        answer: 2,
         why: "Las tareas largas con fallos por deriva del plan son exactamente lo que corrige una llamada de planificación separada. Las tareas cortas o limitadas por herramientas no ganan nada con la llamada y la latencia extra."
       },
       {
@@ -195,32 +195,32 @@ export default {
       },
       {
         q: "¿Qué significa en la práctica «el plan es dato, no prosa»?",
-        options: ["Los planes deben escribirse en formato binario", "Los planes deben ser objetos estructurados con ids, estados y dependencias para poder validarlos, compararlos y parchearlos", "El planificador no debe usar nunca lenguaje natural", "Los planes deben guardarse en una base de datos SQL"],
-        answer: 1,
+        options: ["Los planes deben ser objetos estructurados con ids, estados y dependencias para poder validarlos, compararlos y parchearlos", "El planificador no debe usar nunca lenguaje natural", "Los planes deben guardarse en una base de datos SQL", "Los planes deben escribirse en formato binario"],
+        answer: 0,
         why: "Los planes estructurados permiten validación, diff, parcheo quirúrgico y visualización en interfaz — nada de lo cual soportan de forma fiable los planes en prosa."
       },
       {
         q: "Una tarea replanifica 8 veces y aun así falla. El diagnóstico más probable es…",
-        options: ["El límite de replanificaciones es demasiado bajo y debería subirse a 20", "La temperatura del ejecutor es demasiado baja", "Granularidad errónea del plan o una tarea que nunca fue planificable — no necesidad de más replanificación", "Hay que añadir más pasos al plan a ciegas"],
-        answer: 2,
+        options: ["Hay que añadir más pasos al plan a ciegas", "El límite de replanificaciones es demasiado bajo y debería subirse a 20", "La temperatura del ejecutor es demasiado baja", "Granularidad errónea del plan o una tarea que nunca fue planificable — no necesidad de más replanificación"],
+        answer: 3,
         why: "Replanificar constantemente es una señal, no una solución: los pasos son demasiado frágiles o el entorno demasiado caótico para que planificar ayude. Subir el límite solo quema tokens."
       },
       {
         q: "¿Qué configuración de muestreo es convencional en una división planificador/ejecutor?",
-        options: ["Planificador a baja temperatura (0,0-0,3) por determinismo; ejecutor algo más alta para manejar salidas desordenadas", "Ambos a temperatura máxima por creatividad", "Planificador a temperatura alta; ejecutor a cero", "La temperatura es irrelevante cuando hay dos bucles"],
-        answer: 0,
+        options: ["La temperatura es irrelevante cuando hay dos bucles", "Planificador a baja temperatura (0,0-0,3) por determinismo; ejecutor algo más alta para manejar salidas desordenadas", "Ambos a temperatura máxima por creatividad", "Planificador a temperatura alta; ejecutor a cero"],
+        answer: 1,
         why: "La planificación se beneficia del determinismo — el mismo objetivo debería dar la misma estrategia — mientras la ejecución necesita flexibilidad para lidiar con resultados impredecibles de las herramientas."
       },
       {
         q: "¿Por qué mantener los esquemas de herramientas fuera del prompt del planificador?",
-        options: ["Los esquemas de herramientas son secretos y ningún modelo debe verlos", "Los planificadores tienen prohibido por ley llamar a herramientas", "Los esquemas hacen al planificador más lento en aritmética", "Para mantener pequeño el contexto de planificación y afilada la estrategia; el ejecutor posee los detalles de herramientas"],
-        answer: 3,
+        options: ["Los esquemas hacen al planificador más lento en aritmética", "Para mantener pequeño el contexto de planificación y afilada la estrategia; el ejecutor posee los detalles de herramientas", "Los esquemas de herramientas son secretos y ningún modelo debe verlos", "Los planificadores tienen prohibido por ley llamar a herramientas"],
+        answer: 1,
         why: "Separación de responsabilidades: el planificador razona sobre estrategia, el ejecutor sobre mecánica de herramientas. Mezclarlos reintroduce el síntoma de mezcla de responsabilidades que el segundo bucle debía corregir."
       },
       {
         q: "Tu pista de auditoría muestra el plan v3 activo en el momento del fallo, con la transición v2→v3 disparada por «la API de facturación devolvió 403». Esto es útil porque…",
-        options: ["Demuestra que el planificador nunca tiene la culpa", "Permite ver exactamente qué estrategia estaba activa y qué observación forzó el cambio — haciendo el fallo depurable", "Cumple un requisito legal en todas las jurisdicciones", "Corrige automáticamente el error 403"],
-        answer: 1,
+        options: ["Cumple un requisito legal en todas las jurisdicciones", "Corrige automáticamente el error 403", "Demuestra que el planificador nunca tiene la culpa", "Permite ver exactamente qué estrategia estaba activa y qué observación forzó el cambio — haciendo el fallo depurable"],
+        answer: 3,
         why: "Los planes versionados con observaciones disparadoras convierten «el agente falló» en una historia depurable: qué plan, qué cambio, qué evidencia."
       }
     ]

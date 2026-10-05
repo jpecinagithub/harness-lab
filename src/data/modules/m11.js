@@ -73,8 +73,8 @@ export default {
       },
       {
         q: "What makes self-repairing code effective as a pattern?",
-        options: ["Feeding the exact execution error back as concrete, checkable evidence for a targeted repair attempt", "Asking the model to rewrite everything from scratch each time", "Increasing the temperature on every retry", "Hiding errors from the model so it stays confident"],
-        answer: 0,
+        options: ["Hiding errors from the model so it stays confident", "Feeding the exact execution error back as concrete, checkable evidence for a targeted repair attempt", "Asking the model to rewrite everything from scratch each time", "Increasing the temperature on every retry"],
+        answer: 1,
         why: "A compiler error or failing test is new information the first attempt lacked. Targeted repair against evidence beats vague regeneration."
       },
       {
@@ -85,14 +85,14 @@ export default {
       },
       {
         q: "A useful critic verdict should be…",
-        options: ["A single emoji summarizing the vibe", "Machine-readable: a score plus specific defects as {location, issue, severity} so the harness can decide accept, repair, or escalate", "A long essay about the artifact's potential", "Always 'looks good to me' to keep velocity high"],
-        answer: 1,
+        options: ["Always 'looks good to me' to keep velocity high", "A single emoji summarizing the vibe", "Machine-readable: a score plus specific defects as {location, issue, severity} so the harness can decide accept, repair, or escalate", "A long essay about the artifact's potential"],
+        answer: 2,
         why: "Structured verdicts let the harness act mechanically. Vague praise or essays cannot drive accept/repair/escalate decisions."
       },
       {
         q: "Which scenario describes oscillation in a verify loop?",
-        options: ["The loop finishes on the first attempt", "Attempt 3 fixes the null check but breaks the schema; attempt 4 restores the schema but drops the null check", "The rubric score climbs steadily to 10", "The critic and generator agree immediately"],
-        answer: 1,
+        options: ["Attempt 3 fixes the null check but breaks the schema; attempt 4 restores the schema but drops the null check", "The rubric score climbs steadily to 10", "The critic and generator agree immediately", "The loop finishes on the first attempt"],
+        answer: 0,
         why: "Oscillation is the artifact ping-ponging between two defects — each repair unfixes the previous one. It never converges without intervention."
       },
       {
@@ -103,14 +103,14 @@ export default {
       },
       {
         q: "Why should the critic receive the artifact plus requirements, but NOT the generator's internal reasoning?",
-        options: ["Reasoning chains are too long to fit in any context window", "To preserve the critic's independence — shared reasoning inherits the generator's blind spots", "Generators are forbidden from producing reasoning", "It makes the critic run faster on GPUs"],
-        answer: 1,
+        options: ["Generators are forbidden from producing reasoning", "It makes the critic run faster on GPUs", "Reasoning chains are too long to fit in any context window", "To preserve the critic's independence — shared reasoning inherits the generator's blind spots"],
+        answer: 3,
         why: "A critic that reads the generator's monologue tends to retrace the same faulty logic. Independence is the point of the second opinion."
       },
       {
         q: "When a verify loop exhausts its budget without passing the rubric, the harness should…",
-        options: ["Silently retry from scratch with higher temperature", "Escalate with the artifact, full history, and final critic verdict attached — to a human or a different strategy", "Ship the last attempt anyway", "Delete the trace to keep logs clean"],
-        answer: 1,
+        options: ["Ship the last attempt anyway", "Delete the trace to keep logs clean", "Silently retry from scratch with higher temperature", "Escalate with the artifact, full history, and final critic verdict attached — to a human or a different strategy"],
+        answer: 3,
         why: "Exhaustion is a decision point, not a failure to hide. The history is exactly what a human or fallback strategy needs to take over intelligently."
       }
     ]
@@ -178,26 +178,26 @@ export default {
     quiz: [
       {
         q: "¿Por qué una llamada de crítico separada supera a pedir al generador que «revise su propio trabajo» en el mismo prompt?",
-        options: ["Las llamadas separadas siempre son más baratas", "Los críticos usan una arquitectura de red neuronal distinta", "El modelo corrige sus propios deberes con generosidad; un crítico independiente con rúbrica explícita y sin acceso al razonamiento del generador tiene menos puntos ciegos", "Los generadores no pueden leer rúbricas"],
-        answer: 2,
+        options: ["Los críticos usan una arquitectura de red neuronal distinta", "El modelo corrige sus propios deberes con generosidad; un crítico independiente con rúbrica explícita y sin acceso al razonamiento del generador tiene menos puntos ciegos", "Los generadores no pueden leer rúbricas", "Las llamadas separadas siempre son más baratas"],
+        answer: 1,
         why: "La autocorrección en un único prompt hereda los puntos ciegos y el optimismo del generador. La independencia más una lista explícita es lo que da valor a la segunda opinión."
       },
       {
         q: "¿Qué hace eficaz al código autorreparable como patrón?",
-        options: ["Retroalimentar el error exacto de ejecución como evidencia concreta y comprobable para un intento de reparación dirigido", "Pedir al modelo que reescriba todo desde cero cada vez", "Subir la temperatura en cada reintento", "Ocultar los errores al modelo para que mantenga la confianza"],
-        answer: 0,
+        options: ["Pedir al modelo que reescriba todo desde cero cada vez", "Subir la temperatura en cada reintento", "Ocultar los errores al modelo para que mantenga la confianza", "Retroalimentar el error exacto de ejecución como evidencia concreta y comprobable para un intento de reparación dirigido"],
+        answer: 3,
         why: "Un error de compilación o un test fallido es información nueva que el primer intento no tenía. La reparación dirigida contra evidencia supera a la regeneración vaga."
       },
       {
         q: "Tu bucle de reparación muestra que los intentos 2 y 4 fallan con la misma firma de error normalizada. ¿Qué debe hacer el harness?",
-        options: ["Aumentar maxAttempts a 20 y continuar", "Cambiar a un modelo mayor a mitad del bucle sin registrarlo", "Borrar los registros de error para ahorrar contexto", "Parar de inmediato — es un bucle atascado — y escalar con el historial"],
-        answer: 3,
+        options: ["Parar de inmediato — es un bucle atascado — y escalar con el historial", "Aumentar maxAttempts a 20 y continuar", "Cambiar a un modelo mayor a mitad del bucle sin registrarlo", "Borrar los registros de error para ahorrar contexto"],
+        answer: 0,
         why: "Una firma de error repetida significa que el modelo reescribe el mismo código roto. Más intentos queman tokens; lo correcto es parar y escalar."
       },
       {
         q: "Un veredicto útil del crítico debería ser…",
-        options: ["Un único emoji que resuma la sensación", "Legible por máquina: una puntuación más defectos específicos como {location, issue, severity} para que el harness decida aceptar, reparar o escalar", "Un ensayo largo sobre el potencial del artefacto", "Siempre «se ve bien» para mantener la velocidad"],
-        answer: 1,
+        options: ["Legible por máquina: una puntuación más defectos específicos como {location, issue, severity} para que el harness decida aceptar, reparar o escalar", "Un ensayo largo sobre el potencial del artefacto", "Siempre «se ve bien» para mantener la velocidad", "Un único emoji que resuma la sensación"],
+        answer: 0,
         why: "Los veredictos estructurados permiten al harness actuar mecánicamente. Los elogios vagos o los ensayos no pueden dirigir decisiones de aceptar, reparar o escalar."
       },
       {
@@ -208,20 +208,20 @@ export default {
       },
       {
         q: "¿Cuál es el rango productivo de límite de intentos para la mayoría de las tareas de reparación?",
-        options: ["De 3 a 5 intentos: más allá, los retornos colapsan", "De 50 a 100 intentos por exhaustividad", "Exactamente 1 intento; los reintentos son un desperdicio", "No debería haber límite si la tarea importa"],
-        answer: 0,
+        options: ["Exactamente 1 intento; los reintentos son un desperdicio", "No debería haber límite si la tarea importa", "De 3 a 5 intentos: más allá, los retornos colapsan", "De 50 a 100 intentos por exhaustividad"],
+        answer: 2,
         why: "Empíricamente, una o dos iteraciones de verificación capturan la mayor parte de la ganancia. Pasados unos 5 intentos el modelo suele dar palos de ciego, no mejorar."
       },
       {
         q: "¿Por qué el crítico debe recibir el artefacto más los requisitos, pero NO el razonamiento interno del generador?",
-        options: ["Las cadenas de razonamiento son demasiado largas para cualquier ventana de contexto", "Los generadores tienen prohibido producir razonamiento", "Hace que el crítico corra más rápido en GPU", "Para preservar la independencia del crítico: el razonamiento compartido hereda los puntos ciegos del generador"],
-        answer: 3,
+        options: ["Hace que el crítico corra más rápido en GPU", "Para preservar la independencia del crítico: el razonamiento compartido hereda los puntos ciegos del generador", "Las cadenas de razonamiento son demasiado largas para cualquier ventana de contexto", "Los generadores tienen prohibido producir razonamiento"],
+        answer: 1,
         why: "Un crítico que lee el monólogo del generador tiende a recorrer la misma lógica defectuosa. La independencia es el sentido de la segunda opinión."
       },
       {
         q: "Cuando un bucle de verificación agota su presupuesto sin superar la rúbrica, el harness debe…",
-        options: ["Reintentar en silencio desde cero con mayor temperatura", "Escalar con el artefacto, el historial completo y el veredicto final del crítico adjuntos — a un humano o a otra estrategia", "Publicar el último intento igualmente", "Borrar la traza para mantener limpios los registros"],
-        answer: 1,
+        options: ["Publicar el último intento igualmente", "Borrar la traza para mantener limpios los registros", "Reintentar en silencio desde cero con mayor temperatura", "Escalar con el artefacto, el historial completo y el veredicto final del crítico adjuntos — a un humano o a otra estrategia"],
+        answer: 3,
         why: "El agotamiento es un punto de decisión, no un fallo que ocultar. El historial es exactamente lo que un humano o una estrategia alternativa necesita para tomar el relevo con inteligencia."
       }
     ]

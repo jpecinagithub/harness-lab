@@ -58,20 +58,20 @@ export default {
     quiz: [
       {
         q: "Roughly how much English text fits in a 128k-token window?",
-        options: ["About 30 pages", "About 300 pages — at ~4 characters per token, minus fixed costs like tool schemas", "About 3,000 pages", "An unlimited amount; 128k is just a billing tier"],
-        answer: 1,
+        options: ["About 300 pages — at ~4 characters per token, minus fixed costs like tool schemas", "About 3,000 pages", "An unlimited amount; 128k is just a billing tier", "About 30 pages"],
+        answer: 0,
         why: "At ~4 chars/token, 128k tokens ≈ 500k characters ≈ 300 pages — and fixed costs (system prompt, tool schemas) eat a chunk before the task starts."
       },
       {
         q: "In a typical agent loop, what most often fills the context window fastest?",
-        options: ["Verbose tool results — one untruncated search or file read can inject tens of thousands of tokens in a single step", "The user's short chat messages", "The model's own brief answers", "The JSON brackets in tool schemas"],
-        answer: 0,
+        options: ["The user's short chat messages", "The model's own brief answers", "The JSON brackets in tool schemas", "Verbose tool results — one untruncated search or file read can inject tens of thousands of tokens in a single step"],
+        answer: 3,
         why: "Tool outputs are the silent killer: a single large result dwarfs many turns of chat. Veterans defend the window at ingestion time."
       },
       {
         q: "What is 'context rot'?",
-        options: ["Data corruption in the vector database", "A tokenizer bug that mangles Unicode", "When the API deletes old messages without warning", "Performance degradation — lost-in-the-middle retrieval failures and attention dilution — as the window fills, well before any API limit"],
-        answer: 3,
+        options: ["When the API deletes old messages without warning", "Performance degradation — lost-in-the-middle retrieval failures and attention dilution — as the window fills, well before any API limit", "Data corruption in the vector database", "A tokenizer bug that mangles Unicode"],
+        answer: 1,
         why: "Fitting is not attending: past ~50-60% fill, buried information gets systematically underweighted even though the tokens are paid for."
       },
       {
@@ -82,26 +82,26 @@ export default {
       },
       {
         q: "Your budget allocator reports a headroom violation. The correct response is to…",
-        options: ["Ignore it; headroom is just a suggestion", "Compact or truncate inputs before the next model call — never spend the reserved output space", "Increase the temperature to compensate", "Switch to a smaller model"],
-        answer: 1,
+        options: ["Increase the temperature to compensate", "Switch to a smaller model", "Ignore it; headroom is just a suggestion", "Compact or truncate inputs before the next model call — never spend the reserved output space"],
+        answer: 3,
         why: "Headroom is sacred: it reserves space for the model's answer. Spending it risks API errors and generations cut off mid-reasoning."
       },
       {
         q: "A team upgrades from a 128k to a 1M window without changing what goes into context. The likely result?",
-        options: ["Quality, latency, and cost all improve proportionally", "Mostly higher latency and cost, with little quality gain — curation beats capacity", "Context rot disappears entirely", "Token counting becomes unnecessary"],
-        answer: 1,
+        options: ["Mostly higher latency and cost, with little quality gain — curation beats capacity", "Context rot disappears entirely", "Token counting becomes unnecessary", "Quality, latency, and cost all improve proportionally"],
+        answer: 0,
         why: "Capacity without curation buys tokens, not attention. The documented failure mode is paying for a bigger window full of the same distracting clutter."
       },
       {
         q: "Why should token usage be measured per part (system, tools, history) rather than as one total?",
-        options: ["Per-part measurement is required by law", "Because you need to know WHAT is eating the window to fix it — totals tell you there is a problem, parts tell you which defense to apply", "Totals are impossible to compute", "It makes the dashboard look more professional"],
-        answer: 1,
+        options: ["It makes the dashboard look more professional", "Per-part measurement is required by law", "Because you need to know WHAT is eating the window to fix it — totals tell you there is a problem, parts tell you which defense to apply", "Totals are impossible to compute"],
+        answer: 2,
         why: "A 90k total could mean bloated tool schemas (fix: fewer/leaner tools) or runaway history (fix: compaction) — the remedy depends entirely on the breakdown."
       },
       {
         q: "Which ordering principle best defends against positional bias?",
-        options: ["Randomize the order of all context every turn", "Goal and constraints first, most relevant evidence next, recent history last — with ruthless truncation of everything else", "Put the most important content exactly in the middle", "Alphabetical order by content hash"],
-        answer: 1,
+        options: ["Alphabetical order by content hash", "Randomize the order of all context every turn", "Goal and constraints first, most relevant evidence next, recent history last — with ruthless truncation of everything else", "Put the most important content exactly in the middle"],
+        answer: 2,
         why: "Place what matters where attention is strongest — the start and the end — and keep the context small and dense so there is less middle to get lost in."
       }
     ]
@@ -160,20 +160,20 @@ export default {
     quiz: [
       {
         q: "¿Aproximadamente cuánto texto en inglés cabe en una ventana de 128k tokens?",
-        options: ["Unas 30 páginas", "Unas 300 páginas: a ~4 caracteres por token, menos los costes fijos como los esquemas de herramientas", "Unas 3000 páginas", "Una cantidad ilimitada; 128k es solo un nivel de facturación"],
-        answer: 1,
+        options: ["Unas 300 páginas: a ~4 caracteres por token, menos los costes fijos como los esquemas de herramientas", "Unas 3000 páginas", "Una cantidad ilimitada; 128k es solo un nivel de facturación", "Unas 30 páginas"],
+        answer: 0,
         why: "A ~4 caracteres por token, 128k tokens ≈ 500k caracteres ≈ 300 páginas, y los costes fijos (prompt del sistema, esquemas de herramientas) consumen una parte antes de que empiece la tarea."
       },
       {
         q: "En un bucle de agente típico, ¿qué llena más rápido la ventana de contexto?",
-        options: ["Los resultados verbosos de herramientas: una búsqueda o lectura de fichero sin truncar puede inyectar decenas de miles de tokens en un solo paso", "Los mensajes cortos del usuario en el chat", "Las respuestas breves del propio modelo", "Los corchetes JSON de los esquemas de herramientas"],
-        answer: 0,
+        options: ["Los corchetes JSON de los esquemas de herramientas", "Los resultados verbosos de herramientas: una búsqueda o lectura de fichero sin truncar puede inyectar decenas de miles de tokens en un solo paso", "Los mensajes cortos del usuario en el chat", "Las respuestas breves del propio modelo"],
+        answer: 1,
         why: "Las salidas de herramientas son el asesino silencioso: un único resultado grande eclipsa muchos turnos de chat. Los veteranos defienden la ventana en la ingesta."
       },
       {
         q: "¿Qué es la «putrefacción del contexto» (context rot)?",
-        options: ["Corrupción de datos en la base de datos vectorial", "Un bug del tokenizador que destroza el Unicode", "Cuando la API borra mensajes antiguos sin avisar", "Degradación del rendimiento — fallos de recuperación por pérdida en el medio y dilución de la atención — a medida que la ventana se llena, mucho antes de cualquier límite de la API"],
-        answer: 3,
+        options: ["Degradación del rendimiento — fallos de recuperación por pérdida en el medio y dilución de la atención — a medida que la ventana se llena, mucho antes de cualquier límite de la API", "Corrupción de datos en la base de datos vectorial", "Un bug del tokenizador que destroza el Unicode", "Cuando la API borra mensajes antiguos sin avisar"],
+        answer: 0,
         why: "Caber no es atender: pasado un 50-60% de llenado, la información enterrada queda sistemáticamente infraponderada aunque los tokens estén pagados."
       },
       {
@@ -184,26 +184,26 @@ export default {
       },
       {
         q: "Tu asignador de presupuesto reporta una violación del margen (headroom). La respuesta correcta es…",
-        options: ["Ignorarla; el margen es solo una sugerencia", "Compactar o truncar entradas antes de la siguiente llamada al modelo: no gastar nunca el espacio reservado a la salida", "Subir la temperatura para compensar", "Cambiar a un modelo menor"],
-        answer: 1,
+        options: ["Cambiar a un modelo menor", "Ignorarla; el margen es solo una sugerencia", "Compactar o truncar entradas antes de la siguiente llamada al modelo: no gastar nunca el espacio reservado a la salida", "Subir la temperatura para compensar"],
+        answer: 2,
         why: "El margen es sagrado: reserva espacio para la respuesta del modelo. Gastarlo arriesga errores de la API y generaciones cortadas a mitad del razonamiento."
       },
       {
         q: "Un equipo pasa de una ventana de 128k a una de 1M sin cambiar lo que mete en el contexto. ¿El resultado probable?",
-        options: ["Calidad, latencia y coste mejoran proporcionalmente", "Sobre todo más latencia y coste, con poca ganancia de calidad: la curaduría vence a la capacidad", "La putrefacción del contexto desaparece por completo", "Contar tokens deja de ser necesario"],
-        answer: 1,
+        options: ["Contar tokens deja de ser necesario", "Calidad, latencia y coste mejoran proporcionalmente", "Sobre todo más latencia y coste, con poca ganancia de calidad: la curaduría vence a la capacidad", "La putrefacción del contexto desaparece por completo"],
+        answer: 2,
         why: "La capacidad sin curaduría compra tokens, no atención. El modo de fallo documentado es pagar por una ventana mayor llena del mismo desorden distractor."
       },
       {
         q: "¿Por qué medir el uso de tokens por partes (sistema, herramientas, historial) en lugar de un único total?",
-        options: ["La medición por partes es obligatoria por ley", "Porque necesitas saber QUÉ se come la ventana para corregirlo: los totales dicen que hay un problema, las partes dicen qué defensa aplicar", "Los totales son imposibles de calcular", "Hace que el panel se vea más profesional"],
-        answer: 1,
+        options: ["Los totales son imposibles de calcular", "Hace que el panel se vea más profesional", "La medición por partes es obligatoria por ley", "Porque necesitas saber QUÉ se come la ventana para corregirlo: los totales dicen que hay un problema, las partes dicen qué defensa aplicar"],
+        answer: 3,
         why: "Un total de 90k puede significar esquemas inflados (solución: menos herramientas o más ligeras) o historial desbocado (solución: compactación); el remedio depende por completo del desglose."
       },
       {
         q: "¿Qué principio de ordenación defiende mejor contra el sesgo posicional?",
-        options: ["Aleatorizar el orden de todo el contexto en cada turno", "Objetivo y restricciones primero, evidencia más relevante después, historial reciente al final — con truncado despiadado de todo lo demás", "Poner el contenido más importante exactamente en el medio", "Orden alfabético por hash del contenido"],
-        answer: 1,
+        options: ["Poner el contenido más importante exactamente en el medio", "Orden alfabético por hash del contenido", "Aleatorizar el orden de todo el contexto en cada turno", "Objetivo y restricciones primero, evidencia más relevante después, historial reciente al final — con truncado despiadado de todo lo demás"],
+        answer: 3,
         why: "Coloca lo que importa donde la atención es más fuerte — el inicio y el final — y mantén el contexto pequeño y denso para que haya menos «medio» donde perderse."
       }
     ]

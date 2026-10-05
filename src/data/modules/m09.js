@@ -67,20 +67,20 @@ export default {
     quiz: [
       {
         q: "Your agent completes most tasks in 6-10 loop iterations with 30% context fill. A teammate proposes adding a planner loop 'for robustness'. What does the 'one loop until it hurts' rule say?",
-        options: ["Add it — more loops always increase robustness", "Add it only after tasks start failing in production", "Keep one loop; there is no measured pain to fix", "Add it but keep it disabled until needed"],
-        answer: 2,
+        options: ["Keep one loop; there is no measured pain to fix", "Add it but keep it disabled until needed", "Add it — more loops always increase robustness", "Add it only after tasks start failing in production"],
+        answer: 0,
         why: "The rule demands measured pain before spending complexity budget. 6-10 steps and 30% context fill show a healthy loop; a planner would add cost and failure modes for no demonstrated return."
       },
       {
         q: "Which of the following is a genuine symptom that a second loop may be justified?",
-        options: ["Tasks routinely need 30+ iterations and the window is 70% full before productive work begins", "The model occasionally asks the user a clarifying question", "Tool calls return in under 200 milliseconds", "The system prompt is 400 tokens long"],
-        answer: 0,
+        options: ["The system prompt is 400 tokens long", "Tasks routinely need 30+ iterations and the window is 70% full before productive work begins", "The model occasionally asks the user a clarifying question", "Tool calls return in under 200 milliseconds"],
+        answer: 1,
         why: "Step explosion plus context pressure are two of the five structural symptoms. The other options describe healthy or irrelevant behavior."
       },
       {
         q: "Adding a critic loop to a working single-loop agent will…",
-        options: ["Always reduce total token cost", "Eliminate hallucinations entirely", "Guarantee that the loop converges", "Increase cost per task while potentially improving quality — a trade-off to measure"],
-        answer: 3,
+        options: ["Increase cost per task while potentially improving quality — a trade-off to measure", "Always reduce total token cost", "Eliminate hallucinations entirely", "Guarantee that the loop converges"],
+        answer: 0,
         why: "A critic loop adds model calls per step, so cost rises. Whether quality improves enough to justify it must be measured, not assumed."
       },
       {
@@ -91,14 +91,14 @@ export default {
       },
       {
         q: "Two loops that must agree before acting can…",
-        options: ["Never fail if both use the same model", "Deadlock or duplicate work if their contract is underspecified", "Halve latency in every scenario", "Automatically share one context window"],
-        answer: 1,
+        options: ["Automatically share one context window", "Never fail if both use the same model", "Deadlock or duplicate work if their contract is underspecified", "Halve latency in every scenario"],
+        answer: 2,
         why: "Without a precise contract — who owns what, who decides ties — interacting loops develop emergent failure modes like deadlock and duplicated effort."
       },
       {
         q: "The 'two-symptom rule' states that you should…",
-        options: ["Require at least two persistent, measured symptoms before adding a loop", "Always add exactly two loops, no more", "Treat two loops as the maximum any harness may have", "Count symptoms only if they appear twice in one day"],
-        answer: 0,
+        options: ["Treat two loops as the maximum any harness may have", "Count symptoms only if they appear twice in one day", "Require at least two persistent, measured symptoms before adding a loop", "Always add exactly two loops, no more"],
+        answer: 2,
         why: "One symptom is a bad week — fix the existing loop. Two or more persistent symptoms measured over real traffic justify spending budget on a second loop."
       },
       {
@@ -109,8 +109,8 @@ export default {
       },
       {
         q: "A support agent handles tickets in 8 steps with 25% context fill, but p99 latency is 45 seconds because one docs-search tool is slow. The right fix is to…",
-        options: ["Add a planning loop to reduce steps", "Fix or parallelize the slow tool — the loop itself shows no structural symptoms", "Add a critic loop to review latency", "Raise the iteration cap to 50"],
-        answer: 1,
+        options: ["Add a critic loop to review latency", "Raise the iteration cap to 50", "Add a planning loop to reduce steps", "Fix or parallelize the slow tool — the loop itself shows no structural symptoms"],
+        answer: 3,
         why: "Latency drift from a single slow tool is a tooling problem, not a loop-architecture problem. The loop metrics are healthy, so profile and fix the tool before architecting."
       }
     ]
@@ -177,20 +177,20 @@ export default {
     quiz: [
       {
         q: "Tu agente completa la mayoría de las tareas en 6-10 iteraciones con un 30% de contexto ocupado. Un compañero propone añadir un bucle planificador «por robustez». ¿Qué dice la regla de «un bucle hasta que duela»?",
-        options: ["Añadirlo: más bucles siempre aumentan la robustez", "Añadirlo solo cuando las tareas empiecen a fallar", "Mantener un bucle; no hay ningún dolor medido que corregir", "Añadirlo pero mantenerlo desactivado por defecto"],
-        answer: 2,
+        options: ["Añadirlo pero mantenerlo desactivado por defecto", "Añadirlo: más bucles siempre aumentan la robustez", "Añadirlo solo cuando las tareas empiecen a fallar", "Mantener un bucle; no hay ningún dolor medido que corregir"],
+        answer: 3,
         why: "La regla exige un dolor medido antes de gastar presupuesto de complejidad. 6-10 pasos y un 30% de contexto muestran un bucle sano; un planificador añadiría coste y modos de fallo sin retorno demostrado."
       },
       {
         q: "¿Cuál de los siguientes es un síntoma genuino de que un segundo bucle podría estar justificado?",
-        options: ["Las tareas necesitan rutinariamente más de 30 iteraciones y la ventana está al 70% antes de empezar el trabajo productivo", "El modelo ocasionalmente pide una aclaración al usuario", "Las llamadas a herramientas responden en menos de 200 milisegundos", "El prompt del sistema tiene 400 tokens"],
-        answer: 0,
+        options: ["Las llamadas a herramientas responden en menos de 200 milisegundos", "El prompt del sistema tiene 400 tokens", "Las tareas necesitan rutinariamente más de 30 iteraciones y la ventana está al 70% antes de empezar el trabajo productivo", "El modelo ocasionalmente pide una aclaración al usuario"],
+        answer: 2,
         why: "La explosión de pasos más la presión de contexto son dos de los cinco síntomas estructurales. Las demás opciones describen comportamientos sanos o irrelevantes."
       },
       {
         q: "Añadir un bucle crítico a un agente de un solo bucle que funciona…",
-        options: ["Siempre reduce el coste total en tokens", "Elimina las alucinaciones por completo", "Garantiza que el bucle converja", "Aumenta el coste por tarea pudiendo mejorar la calidad: un compromiso que hay que medir"],
-        answer: 3,
+        options: ["Elimina las alucinaciones por completo", "Garantiza que el bucle converja", "Aumenta el coste por tarea pudiendo mejorar la calidad: un compromiso que hay que medir", "Siempre reduce el coste total en tokens"],
+        answer: 2,
         why: "Un bucle crítico añade llamadas al modelo por paso, así que el coste sube. Si la calidad mejora lo suficiente para justificarlo debe medirse, no asumirse."
       },
       {
@@ -201,26 +201,26 @@ export default {
       },
       {
         q: "Dos bucles que deben ponerse de acuerdo antes de actuar pueden…",
-        options: ["No fallar nunca si ambos usan el mismo modelo", "Bloquearse o duplicar trabajo si su contrato está poco especificado", "Reducir la latencia a la mitad en todos los casos", "Compartir automáticamente una ventana de contexto"],
-        answer: 1,
+        options: ["Reducir la latencia a la mitad en todos los casos", "Compartir automáticamente una ventana de contexto", "No fallar nunca si ambos usan el mismo modelo", "Bloquearse o duplicar trabajo si su contrato está poco especificado"],
+        answer: 3,
         why: "Sin un contrato preciso — quién posee qué, quién desempata — los bucles que interactúan desarrollan modos de fallo emergentes como bloqueos y trabajo duplicado."
       },
       {
         q: "La «regla de los dos síntomas» establece que debes…",
-        options: ["Exigir al menos dos síntomas persistentes y medidos antes de añadir un bucle", "Añadir siempre exactamente dos bucles, ni más", "Tratar dos bucles como el máximo que puede tener un harness", "Contar los síntomas solo si aparecen dos veces en un día"],
-        answer: 0,
+        options: ["Contar los síntomas solo si aparecen dos veces en un día", "Exigir al menos dos síntomas persistentes y medidos antes de añadir un bucle", "Añadir siempre exactamente dos bucles, ni más", "Tratar dos bucles como el máximo que puede tener un harness"],
+        answer: 1,
         why: "Un síntoma es una mala semana: arregla el bucle existente. Dos o más síntomas persistentes medidos sobre tráfico real justifican gastar presupuesto en un segundo bucle."
       },
       {
         q: "¿Por qué las «cascadas de errores» son un síntoma estructural y no un simple bug?",
-        options: ["Porque todos los errores en agentes son estructurales por definición", "Porque las cascadas no pueden ocurrir dentro de un único bucle", "Porque significa que la temperatura del modelo es demasiado alta", "Porque una llamada fallida que envenena muchos pasos posteriores muestra que el bucle carece de aislamiento entre fases"],
-        answer: 3,
+        options: ["Porque una llamada fallida que envenena muchos pasos posteriores muestra que el bucle carece de aislamiento entre fases", "Porque todos los errores en agentes son estructurales por definición", "Porque las cascadas no pueden ocurrir dentro de un único bucle", "Porque significa que la temperatura del modelo es demasiado alta"],
+        answer: 0,
         why: "Un único fallo que corrompe los pasos siguientes revela una falta estructural de aislamiento entre fases, justo el tipo de problema que un bucle separado (p. ej., subtareas delegadas) está diseñado para resolver."
       },
       {
         q: "Un agente de soporte resuelve tickets en 8 pasos con un 25% de contexto ocupado, pero la latencia p99 es de 45 segundos porque una herramienta de búsqueda en la documentación es lenta. La corrección adecuada es…",
-        options: ["Añadir un bucle de planificación para reducir pasos", "Corregir o paralelizar la herramienta lenta: el bucle en sí no muestra síntomas estructurales", "Añadir un bucle crítico que revise la latencia", "Elevar el límite de iteraciones a 50"],
-        answer: 1,
+        options: ["Corregir o paralelizar la herramienta lenta: el bucle en sí no muestra síntomas estructurales", "Añadir un bucle crítico que revise la latencia", "Elevar el límite de iteraciones a 50", "Añadir un bucle de planificación para reducir pasos"],
+        answer: 0,
         why: "La deriva de latencia por una única herramienta lenta es un problema de herramientas, no de arquitectura del bucle. Las métricas del bucle son sanas, así que perfila y corrige la herramienta antes de diseñar arquitectura."
       }
     ]

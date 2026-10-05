@@ -67,14 +67,14 @@ export default {
     quiz: [
       {
         q: "What is the hidden superpower of delegating document summarization to ten subagents instead of one loop?",
-        options: ["Subagents are always smarter than the parent", "It eliminates the need for a synthesis step", "Each subagent gets a fresh context window, so the parent's context stays small and one branch's failure poisons only its own subtask", "Subagents never need timeouts"],
-        answer: 2,
+        options: ["Each subagent gets a fresh context window, so the parent's context stays small and one branch's failure poisons only its own subtask", "Subagents never need timeouts", "Subagents are always smarter than the parent", "It eliminates the need for a synthesis step"],
+        answer: 0,
         why: "Fresh windows per branch solve both context pressure and failure isolation at once. The parent only ever sees compact summaries plus explicit failure reports."
       },
       {
         q: "Which is a strict prerequisite for safe delegation?",
-        options: ["Subtasks must be genuinely independent, each with a crisp contract: inputs, output shape, and done criteria", "All subtasks must use the same model", "The parent must watch every subagent step in real time", "Delegation only works with exactly three subagents"],
-        answer: 0,
+        options: ["Delegation only works with exactly three subagents", "Subtasks must be genuinely independent, each with a crisp contract: inputs, output shape, and done criteria", "All subtasks must use the same model", "The parent must watch every subagent step in real time"],
+        answer: 1,
         why: "Independence plus contracts is what makes fan-in tractable. Without them, branches interfere and their outputs cannot be reconciled."
       },
       {
@@ -85,14 +85,14 @@ export default {
       },
       {
         q: "Why should the approval policy live as data in the harness rather than as instructions in the prompt?",
-        options: ["Prompts cannot contain lists", "Data tables are auditable and testable, and the model cannot talk its way around a code-level policy the way it can reinterpret prompt prose", "It makes the prompt shorter for aesthetic reasons", "Policies in code run faster on GPUs"],
-        answer: 1,
+        options: ["It makes the prompt shorter for aesthetic reasons", "Policies in code run faster on GPUs", "Prompts cannot contain lists", "Data tables are auditable and testable, and the model cannot talk its way around a code-level policy the way it can reinterpret prompt prose"],
+        answer: 3,
         why: "A policy the model can read is a policy the model can argue with. Enforcement belongs in code the model cannot negotiate."
       },
       {
         q: "A loop asks for human approval on every third step. According to the module, this means…",
-        options: ["The human-in-the-loop design is working perfectly", "The task decomposition is wrong — the human has become the slowest, most expensive part of the loop", "More gates should be added for safety", "The model needs a higher temperature"],
-        answer: 1,
+        options: ["The task decomposition is wrong — the human has become the slowest, most expensive part of the loop", "More gates should be added for safety", "The model needs a higher temperature", "The human-in-the-loop design is working perfectly"],
+        answer: 0,
         why: "Gates belong at the boundary of irreversibility: few and explicit. Approval on routine steps means autonomy failed upstream, at decomposition time."
       },
       {
@@ -109,8 +109,8 @@ export default {
       },
       {
         q: "What is the correct escalation ladder?",
-        options: ["Human takeover first, then retry, then delegate", "Retry in-loop → delegate to a subagent → approval gate → human takeover", "Delete the task and start over at each failure", "Escalation ladders are unnecessary with good prompts"],
-        answer: 1,
+        options: ["Delete the task and start over at each failure", "Escalation ladders are unnecessary with good prompts", "Human takeover first, then retry, then delegate", "Retry in-loop → delegate to a subagent → approval gate → human takeover"],
+        answer: 3,
         why: "Escalation should climb from cheapest to most expensive: local retry, then isolated delegation, then a gate, then a human — each rung explicit in the harness."
       }
     ]
@@ -183,14 +183,14 @@ export default {
       },
       {
         q: "¿Cuál es un prerrequisito estricto para una delegación segura?",
-        options: ["Las subtareas deben ser genuinamente independientes, cada una con un contrato nítido: entradas, forma de salida y criterios de finalización", "Todas las subtareas deben usar el mismo modelo", "El padre debe observar cada paso de cada subagente en tiempo real", "La delegación solo funciona con exactamente tres subagentes"],
-        answer: 0,
+        options: ["Todas las subtareas deben usar el mismo modelo", "El padre debe observar cada paso de cada subagente en tiempo real", "La delegación solo funciona con exactamente tres subagentes", "Las subtareas deben ser genuinamente independientes, cada una con un contrato nítido: entradas, forma de salida y criterios de finalización"],
+        answer: 3,
         why: "La independencia más los contratos es lo que hace tratable la reintegración. Sin ellos, las ramas interfieren y sus salidas no se pueden reconciliar."
       },
       {
         q: "Una puerta de aprobación expira sin respuesta humana. El comportamiento seguro es…",
-        options: ["Aprobar automáticamente: el humano probablemente está de acuerdo", "Reintentar la solicitud de aprobación eternamente", "Denegar por defecto: rechazar la acción y continuar con una alternativa segura o escalar", "Dejar que el modelo apruebe su propia acción para mantener velocidad"],
-        answer: 2,
+        options: ["Dejar que el modelo apruebe su propia acción para mantener velocidad", "Aprobar automáticamente: el humano probablemente está de acuerdo", "Reintentar la solicitud de aprobación eternamente", "Denegar por defecto: rechazar la acción y continuar con una alternativa segura o escalar"],
+        answer: 3,
         why: "La denegación por defecto es la única semántica segura ante timeout. Aprobar ante timeout convierte cada momento desatendido en un agujero de seguridad, y la autoaprobación anula la puerta por completo."
       },
       {
@@ -201,8 +201,8 @@ export default {
       },
       {
         q: "Un bucle pide aprobación humana cada tres pasos. Según el módulo, esto significa…",
-        options: ["Que el diseño de humano-en-el-bucle funciona perfectamente", "Que la descomposición de la tarea está mal: el humano se ha convertido en la parte más lenta y cara del bucle", "Que hay que añadir más puertas por seguridad", "Que el modelo necesita mayor temperatura"],
-        answer: 1,
+        options: ["Que el modelo necesita mayor temperatura", "Que el diseño de humano-en-el-bucle funciona perfectamente", "Que la descomposición de la tarea está mal: el humano se ha convertido en la parte más lenta y cara del bucle", "Que hay que añadir más puertas por seguridad"],
+        answer: 2,
         why: "Las puertas pertenecen a la frontera de la irreversibilidad: pocas y explícitas. La aprobación en pasos rutinarios significa que la autonomía falló antes, en la descomposición."
       },
       {
@@ -213,14 +213,14 @@ export default {
       },
       {
         q: "¿Qué nivel corresponde a «send.email a un cliente»?",
-        options: ["auto: los correos son inofensivos", "notify: enviarlo y solo registrarlo de forma prominente", "El estado de ánimo del modelo", "require: efecto externo y difícil de revertir, así que un humano aprueba primero"],
-        answer: 3,
+        options: ["require: efecto externo y difícil de revertir, así que un humano aprueba primero", "auto: los correos son inofensivos", "notify: enviarlo y solo registrarlo de forma prominente", "El estado de ánimo del modelo"],
+        answer: 0,
         why: "Los efectos externos y difíciles de revertir caen de lleno en requiere-aprobación. El coste de un envío erróneo eclipsa el coste de un clic de aprobación."
       },
       {
         q: "¿Cuál es la escalera de escalada correcta?",
-        options: ["Toma de control humana primero, luego reintento, luego delegar", "Reintento en el bucle → delegar a un subagente → puerta de aprobación → toma de control humana", "Borrar la tarea y empezar de cero ante cada fallo", "Las escaleras de escalada son innecesarias con buenos prompts"],
-        answer: 1,
+        options: ["Reintento en el bucle → delegar a un subagente → puerta de aprobación → toma de control humana", "Borrar la tarea y empezar de cero ante cada fallo", "Las escaleras de escalada son innecesarias con buenos prompts", "Toma de control humana primero, luego reintento, luego delegar"],
+        answer: 0,
         why: "La escalada debe subir de lo más barato a lo más caro: reintento local, luego delegación aislada, luego puerta, luego humano — cada peldaño explícito en el harness."
       }
     ]

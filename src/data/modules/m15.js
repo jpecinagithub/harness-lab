@@ -65,32 +65,32 @@ export default {
     quiz: [
       {
         q: "What does an embedding model produce, and why is it useful for memory?",
-        options: ["A compressed ZIP of the text for cheaper storage", "A dense vector capturing meaning, so 'find relevant memories' becomes a nearest-neighbor geometry problem", "A summary written by a larger model", "An encryption key for the memory database"],
-        answer: 1,
+        options: ["A dense vector capturing meaning, so 'find relevant memories' becomes a nearest-neighbor geometry problem", "A summary written by a larger model", "An encryption key for the memory database", "A compressed ZIP of the text for cheaper storage"],
+        answer: 0,
         why: "Embeddings place similar meanings near each other in vector space; cosine similarity then retrieves by meaning, not keywords."
       },
       {
         q: "A memory store uses a cosine-similarity threshold of 0.55. The likely symptom is…",
-        options: ["Retrieval drowned in false positives — vaguely related memories flood the context", "Perfect precision on every query", "Faster queries than a higher threshold", "Memories that never decay"],
-        answer: 0,
+        options: ["Faster queries than a higher threshold", "Memories that never decay", "Retrieval drowned in false positives — vaguely related memories flood the context", "Perfect precision on every query"],
+        answer: 2,
         why: "Below ~0.70, similarity stops discriminating: the agent retrieves noise. The practical band is 0.70-0.85, calibrated per domain."
       },
       {
         q: "'The production database is Postgres 15' is which kind of memory?",
-        options: ["Episodic — it describes a specific event", "Procedural — it describes a workflow", "It is not a memory at all", "Semantic — a distilled, timeless fact"],
-        answer: 3,
+        options: ["Procedural — it describes a workflow", "It is not a memory at all", "Semantic — a distilled, timeless fact", "Episodic — it describes a specific event"],
+        answer: 2,
         why: "Semantic memory holds stable facts. Episodic would be timestamped ('on 2026-09-14 we migrated…'); procedural would be a how-to."
       },
       {
         q: "Why store distilled facts rather than raw transcripts as memories?",
-        options: ["Transcripts are illegal to store", "Raw transcripts are cheap to write but noisy and long to retrieve; distillations are compact and precise", "Embeddings cannot process long texts", "Distillations use more dimensions"],
-        answer: 1,
+        options: ["Raw transcripts are cheap to write but noisy and long to retrieve; distillations are compact and precise", "Embeddings cannot process long texts", "Distillations use more dimensions", "Transcripts are illegal to store"],
+        answer: 0,
         why: "Retrieval quality depends on what you stored. A 40k-token transcript buries the one lesson; a one-line fact retrieves cleanly."
       },
       {
         q: "When should the agent call memory_write?",
-        options: ["After every single tool call, for completeness", "At decision points: one memory per task or per durable lesson learned — never per tool call", "Only when the user explicitly says 'remember this'", "Once per year during maintenance"],
-        answer: 1,
+        options: ["Only when the user explicitly says 'remember this'", "Once per year during maintenance", "After every single tool call, for completeness", "At decision points: one memory per task or per durable lesson learned — never per tool call"],
+        answer: 3,
         why: "Per-step writes flood the store with noise and cost an embedding call each time. Decision-point writes keep memory dense and valuable."
       },
       {
@@ -107,8 +107,8 @@ export default {
       },
       {
         q: "Retrieved memories are capped at 3-5 hits and 1,000-2,000 tokens because…",
-        options: ["The vector store cannot return more", "Retrieved content competes for the same window budget as everything else — memory that floods the window is clutter with an index", "Cosine similarity breaks past 5 results", "Users dislike reading more than 5 memories"],
-        answer: 1,
+        options: ["Cosine similarity breaks past 5 results", "Users dislike reading more than 5 memories", "The vector store cannot return more", "Retrieved content competes for the same window budget as everything else — memory that floods the window is clutter with an index"],
+        answer: 3,
         why: "Memory injection spends the m13 budget. Uncapped retrieval reintroduces the context-pressure symptom that memory was supposed to relieve."
       }
     ]
@@ -173,8 +173,8 @@ export default {
     quiz: [
       {
         q: "¿Qué produce un modelo de embeddings y por qué es útil para la memoria?",
-        options: ["Un ZIP comprimido del texto para almacenamiento más barato", "Un vector denso que captura el significado, así «encontrar recuerdos relevantes» se vuelve un problema geométrico de vecinos cercanos", "Un resumen escrito por un modelo mayor", "Una clave de cifrado para la base de memoria"],
-        answer: 1,
+        options: ["Una clave de cifrado para la base de memoria", "Un ZIP comprimido del texto para almacenamiento más barato", "Un vector denso que captura el significado, así «encontrar recuerdos relevantes» se vuelve un problema geométrico de vecinos cercanos", "Un resumen escrito por un modelo mayor"],
+        answer: 2,
         why: "Los embeddings colocan significados similares cerca en el espacio vectorial; la similitud coseno recupera entonces por significado, no por palabras clave."
       },
       {
@@ -185,14 +185,14 @@ export default {
       },
       {
         q: "«La base de datos de producción es Postgres 15» es qué tipo de memoria?",
-        options: ["Episódica: describe un evento específico", "Procedimental: describe un flujo de trabajo", "No es una memoria en absoluto", "Semántica: un hecho destilado e intemporal"],
-        answer: 3,
+        options: ["Procedimental: describe un flujo de trabajo", "No es una memoria en absoluto", "Semántica: un hecho destilado e intemporal", "Episódica: describe un evento específico"],
+        answer: 2,
         why: "La memoria semántica guarda hechos estables. La episódica tendría fecha («el 2026-09-14 migramos…»); la procedimental sería un cómo hacerlo."
       },
       {
         q: "¿Por qué almacenar hechos destilados en lugar de transcripciones en bruto como recuerdos?",
-        options: ["Almacenar transcripciones es ilegal", "Las transcripciones en bruto son baratas de escribir pero ruidosas y largas de recuperar; las destilaciones son compactas y precisas", "Los embeddings no pueden procesar textos largos", "Las destilaciones usan más dimensiones"],
-        answer: 1,
+        options: ["Los embeddings no pueden procesar textos largos", "Las destilaciones usan más dimensiones", "Almacenar transcripciones es ilegal", "Las transcripciones en bruto son baratas de escribir pero ruidosas y largas de recuperar; las destilaciones son compactas y precisas"],
+        answer: 3,
         why: "La calidad de recuperación depende de lo que almacenaste. Una transcripción de 40k tokens entierra la única lección; un hecho de una línea se recupera limpio."
       },
       {
@@ -203,20 +203,20 @@ export default {
       },
       {
         q: "¿Por qué la memoria procedimental suele vivir como documentos versionados o código en lugar de vectores?",
-        options: ["Los vectores no pueden almacenar texto", "Los procedimientos necesitan exactitud: la búsqueda por similitud recupera «bastante parecido», lo cual es peligroso para flujos paso a paso", "Los documentos son más baratos que las bases de datos", "La memoria procedimental nunca se recupera"],
-        answer: 1,
+        options: ["Los documentos son más baratos que las bases de datos", "La memoria procedimental nunca se recupera", "Los vectores no pueden almacenar texto", "Los procedimientos necesitan exactitud: la búsqueda por similitud recupera «bastante parecido», lo cual es peligroso para flujos paso a paso"],
+        answer: 3,
         why: "Un manual aplicado de forma aproximada es un manual aplicado mal. Los artefactos exactos con actualizaciones versionadas vencen a la recuperación difusa para el conocimiento de cómo hacerlo."
       },
       {
         q: "La regla de actualización de la memoria semántica es…",
-        options: ["Añadir todo; no borrar nunca", "Decaer con la edad como la memoria episódica", "Reescribir todos los hechos semanalmente con un programador", "Reemplazar al cambiar y deduplicar: un hecho superado recuperado con confianza es peor que no tener memoria"],
-        answer: 3,
+        options: ["Reescribir todos los hechos semanalmente con un programador", "Reemplazar al cambiar y deduplicar: un hecho superado recuperado con confianza es peor que no tener memoria", "Añadir todo; no borrar nunca", "Decaer con la edad como la memoria episódica"],
+        answer: 1,
         why: "Los hechos semánticos pretenden intemporalidad, así que los obsoletos son activamente dañinos. El reemplazo y la deduplicación mantienen veraz la enciclopedia."
       },
       {
         q: "Los recuerdos recuperados se limitan a 3-5 resultados y 1000-2000 tokens porque…",
-        options: ["El almacén vectorial no puede devolver más", "El contenido recuperado compite por el mismo presupuesto de ventana que todo lo demás: la memoria que inunda la ventana es desorden con un índice", "La similitud coseno se rompe con más de 5 resultados", "A los usuarios no les gusta leer más de 5 recuerdos"],
-        answer: 1,
+        options: ["El contenido recuperado compite por el mismo presupuesto de ventana que todo lo demás: la memoria que inunda la ventana es desorden con un índice", "La similitud coseno se rompe con más de 5 resultados", "A los usuarios no les gusta leer más de 5 recuerdos", "El almacén vectorial no puede devolver más"],
+        answer: 0,
         why: "La inyección de memoria gasta el presupuesto del m13. La recuperación sin límite reintroduce el síntoma de presión de contexto que la memoria debía aliviar."
       }
     ]
