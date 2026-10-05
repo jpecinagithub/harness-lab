@@ -59,7 +59,7 @@ export default {
       {
         q: "Roughly how much English text fits in a 128k-token window?",
         options: ["About 30 pages", "About 300 pages — at ~4 characters per token, minus fixed costs like tool schemas", "About 3,000 pages", "An unlimited amount; 128k is just a billing tier"],
-        answer: 2,
+        answer: 1,
         why: "At ~4 chars/token, 128k tokens ≈ 500k characters ≈ 300 pages — and fixed costs (system prompt, tool schemas) eat a chunk before the task starts."
       },
       {
@@ -83,19 +83,19 @@ export default {
       {
         q: "Your budget allocator reports a headroom violation. The correct response is to…",
         options: ["Ignore it; headroom is just a suggestion", "Compact or truncate inputs before the next model call — never spend the reserved output space", "Increase the temperature to compensate", "Switch to a smaller model"],
-        answer: 2,
+        answer: 1,
         why: "Headroom is sacred: it reserves space for the model's answer. Spending it risks API errors and generations cut off mid-reasoning."
       },
       {
         q: "A team upgrades from a 128k to a 1M window without changing what goes into context. The likely result?",
         options: ["Quality, latency, and cost all improve proportionally", "Mostly higher latency and cost, with little quality gain — curation beats capacity", "Context rot disappears entirely", "Token counting becomes unnecessary"],
-        answer: 0,
+        answer: 1,
         why: "Capacity without curation buys tokens, not attention. The documented failure mode is paying for a bigger window full of the same distracting clutter."
       },
       {
         q: "Why should token usage be measured per part (system, tools, history) rather than as one total?",
         options: ["Per-part measurement is required by law", "Because you need to know WHAT is eating the window to fix it — totals tell you there is a problem, parts tell you which defense to apply", "Totals are impossible to compute", "It makes the dashboard look more professional"],
-        answer: 3,
+        answer: 1,
         why: "A 90k total could mean bloated tool schemas (fix: fewer/leaner tools) or runaway history (fix: compaction) — the remedy depends entirely on the breakdown."
       },
       {
@@ -161,7 +161,7 @@ export default {
       {
         q: "¿Aproximadamente cuánto texto en inglés cabe en una ventana de 128k tokens?",
         options: ["Unas 30 páginas", "Unas 300 páginas: a ~4 caracteres por token, menos los costes fijos como los esquemas de herramientas", "Unas 3000 páginas", "Una cantidad ilimitada; 128k es solo un nivel de facturación"],
-        answer: 2,
+        answer: 1,
         why: "A ~4 caracteres por token, 128k tokens ≈ 500k caracteres ≈ 300 páginas, y los costes fijos (prompt del sistema, esquemas de herramientas) consumen una parte antes de que empiece la tarea."
       },
       {
@@ -185,19 +185,19 @@ export default {
       {
         q: "Tu asignador de presupuesto reporta una violación del margen (headroom). La respuesta correcta es…",
         options: ["Ignorarla; el margen es solo una sugerencia", "Compactar o truncar entradas antes de la siguiente llamada al modelo: no gastar nunca el espacio reservado a la salida", "Subir la temperatura para compensar", "Cambiar a un modelo menor"],
-        answer: 2,
+        answer: 1,
         why: "El margen es sagrado: reserva espacio para la respuesta del modelo. Gastarlo arriesga errores de la API y generaciones cortadas a mitad del razonamiento."
       },
       {
         q: "Un equipo pasa de una ventana de 128k a una de 1M sin cambiar lo que mete en el contexto. ¿El resultado probable?",
         options: ["Calidad, latencia y coste mejoran proporcionalmente", "Sobre todo más latencia y coste, con poca ganancia de calidad: la curaduría vence a la capacidad", "La putrefacción del contexto desaparece por completo", "Contar tokens deja de ser necesario"],
-        answer: 0,
+        answer: 1,
         why: "La capacidad sin curaduría compra tokens, no atención. El modo de fallo documentado es pagar por una ventana mayor llena del mismo desorden distractor."
       },
       {
         q: "¿Por qué medir el uso de tokens por partes (sistema, herramientas, historial) en lugar de un único total?",
         options: ["La medición por partes es obligatoria por ley", "Porque necesitas saber QUÉ se come la ventana para corregirlo: los totales dicen que hay un problema, las partes dicen qué defensa aplicar", "Los totales son imposibles de calcular", "Hace que el panel se vea más profesional"],
-        answer: 3,
+        answer: 1,
         why: "Un total de 90k puede significar esquemas inflados (solución: menos herramientas o más ligeras) o historial desbocado (solución: compactación); el remedio depende por completo del desglose."
       },
       {

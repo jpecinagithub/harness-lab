@@ -80,7 +80,7 @@ export default {
       {
         q: "Why might you use a larger model for planning and a smaller one for execution?",
         options: ["Larger models cannot call tools, so they must plan", "Planning is reasoning-heavy but low-volume: one 2,000-token plan can steer twenty cheap execution steps", "Small models are incapable of following plans", "It doubles the context window automatically"],
-        answer: 3,
+        answer: 1,
         why: "The cost-optimal split concentrates expensive reasoning where leverage is highest — the plan — while high-volume execution runs cheap. The other options are false."
       },
       {
@@ -92,7 +92,7 @@ export default {
       {
         q: "A task replans 8 times and still fails. The most likely diagnosis is…",
         options: ["The replan cap is too low and should be raised to 20", "Wrong plan granularity or a task that was never plannable — not a need for more replanning", "The executor's temperature is too low", "The plan needs more steps added blindly"],
-        answer: 2,
+        answer: 1,
         why: "Constant replanning is a signal, not a fix: the steps are too brittle or the environment too chaotic for planning to help. Raising the cap just burns tokens."
       },
       {
@@ -190,7 +190,7 @@ export default {
       {
         q: "¿Por qué usar un modelo mayor para planificar y uno menor para ejecutar?",
         options: ["Los modelos grandes no pueden llamar a herramientas, así que deben planificar", "Los modelos pequeños son incapaces de seguir planes", "Planificar es intenso en razonamiento pero de bajo volumen: un plan de 2000 tokens puede dirigir veinte pasos baratos de ejecución", "Duplica automáticamente la ventana de contexto"],
-        answer: 3,
+        answer: 2,
         why: "La división óptima en coste concentra el razonamiento caro donde más apalancamiento tiene — el plan — mientras la ejecución de alto volumen corre barata. Las demás opciones son falsas."
       },
       {

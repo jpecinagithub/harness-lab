@@ -68,19 +68,19 @@ export default {
       {
         q: "When should a rolling-summary compaction trigger?",
         options: ["After every single loop iteration", "When history crosses a budget fraction (e.g., 70% of its cap) — measured in tokens, not message count", "Only when the API returns a context-length error", "Once per day on a schedule"],
-        answer: 2,
+        answer: 1,
         why: "Triggering on budget fraction keeps compaction proportional to actual pressure. Fixed schedules or post-error triggers are either wasteful or too late."
       },
       {
         q: "What is the main failure mode of plain truncation?",
         options: ["It costs too many tokens", "Amnesia about decisions: facts from the dropped middle are gone silently, so the agent retries things it already tried", "It requires a separate model call", "It makes the context window larger"],
-        answer: 0,
+        answer: 1,
         why: "Truncation is free and deterministic, but blind — dropped content vanishes without a trace, and decision amnesia is the classic symptom."
       },
       {
         q: "A good compaction summary preserves…",
         options: ["Every tool call with full arguments for completeness", "The exact wording of casual small talk", "Decisions, facts, numbers/ids, errors and their lessons, and open questions — omitting tool-call chatter", "Only the most recent user message"],
-        answer: 3,
+        answer: 2,
         why: "The summary is written for a future model-reader: it needs the durable conclusions, not the blow-by-blow. Numbers and ids must never be paraphrased."
       },
       {
@@ -92,19 +92,19 @@ export default {
       {
         q: "Which content belongs on the keep-verbatim (pinned) list?",
         options: ["Old tool outputs and retry chatter", "The user's original goal, tool schemas, and the active plan's statuses", "The summarizer's own previous summaries", "System timestamps"],
-        answer: 2,
+        answer: 1,
         why: "Paraphrase drift on the goal, schemas, or plan statuses corrupts the task itself. These segments must be byte-identical before and after compaction."
       },
       {
         q: "What is the main failure mode of summarization-based compaction?",
         options: ["It is fully deterministic, so it cannot fail", "A poisoned summary: one bad compression corrupts every downstream step that builds on it", "It always increases token usage", "Summaries cannot be written in English"],
-        answer: 0,
+        answer: 1,
         why: "Unlike truncation's local amnesia, a bad summary is load-bearing: everything downstream reasons from it. Validate summaries on evals, not vibes."
       },
       {
         q: "A 20,000-token history segment becomes a 1,500-token summary. The compaction ratio and its implication are…",
         options: ["0.075:1 — the summary is too small to be useful", "Roughly 13:1 — strong compression, but every future step now depends on the summary's fidelity", "1:1 — no compression happened", "It cannot be computed without the model name"],
-        answer: 3,
+        answer: 1,
         why: "13:1 is an excellent ratio and exactly why summarization beats truncation for long tasks — with the caveat that the summary becomes critical infrastructure."
       },
       {
@@ -178,19 +178,19 @@ export default {
       {
         q: "¿Cuándo debe dispararse una compactación con resumen continuo?",
         options: ["Tras cada iteración del bucle", "Cuando el historial cruza una fracción del presupuesto (p. ej., el 70% de su límite), medida en tokens, no en número de mensajes", "Solo cuando la API devuelve un error de longitud de contexto", "Una vez al día con un programador"],
-        answer: 2,
+        answer: 1,
         why: "Disparar por fracción del presupuesto mantiene la compactación proporcional a la presión real. Los calendarios fijos o los disparadores post-error son derrochadores o llegan tarde."
       },
       {
         q: "¿Cuál es el principal modo de fallo del truncado simple?",
         options: ["Cuesta demasiados tokens", "Amnesia sobre decisiones: los hechos del medio eliminado desaparecen en silencio, así que el agente reintenta cosas que ya probó", "Requiere una llamada separada al modelo", "Hace la ventana de contexto más grande"],
-        answer: 0,
+        answer: 1,
         why: "El truncado es gratis y determinista, pero ciego: el contenido eliminado se esfuma sin rastro, y la amnesia de decisiones es el síntoma clásico."
       },
       {
         q: "Un buen resumen de compactación preserva…",
         options: ["Cada llamada a herramienta con sus argumentos completos", "La redacción exacta de la charla trivial", "Decisiones, hechos, números/ids, errores y sus lecciones, y preguntas abiertas — omitiendo la cháchara de herramientas", "Solo el mensaje más reciente del usuario"],
-        answer: 3,
+        answer: 2,
         why: "El resumen se escribe para un futuro lector-modelo: necesita las conclusiones duraderas, no el parte de guerra. Los números e ids nunca deben parafrasearse."
       },
       {
@@ -208,13 +208,13 @@ export default {
       {
         q: "¿Cuál es el principal modo de fallo de la compactación basada en resúmenes?",
         options: ["Es totalmente determinista, así que no puede fallar", "Un resumen envenenado: una mala compresión corrompe cada paso posterior que se apoya en él", "Siempre aumenta el uso de tokens", "Los resúmenes no se pueden escribir en inglés"],
-        answer: 0,
+        answer: 1,
         why: "A diferencia de la amnesia local del truncado, un mal resumen es estructural: todo lo posterior razona a partir de él. Valida los resúmenes con evaluaciones, no con sensaciones."
       },
       {
         q: "Un segmento de historial de 20 000 tokens se convierte en un resumen de 1500 tokens. La tasa de compactación y su implicación son…",
         options: ["0,075:1: el resumen es demasiado pequeño para ser útil", "Aproximadamente 13:1: compresión fuerte, pero cada paso futuro depende ahora de la fidelidad del resumen", "1:1: no hubo compresión", "No se puede calcular sin el nombre del modelo"],
-        answer: 3,
+        answer: 1,
         why: "13:1 es una tasa excelente y justo por eso el resumen supera al truncado en tareas largas — con la advertencia de que el resumen se vuelve infraestructura crítica."
       },
       {

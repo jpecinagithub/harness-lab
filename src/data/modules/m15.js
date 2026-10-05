@@ -66,7 +66,7 @@ export default {
       {
         q: "What does an embedding model produce, and why is it useful for memory?",
         options: ["A compressed ZIP of the text for cheaper storage", "A dense vector capturing meaning, so 'find relevant memories' becomes a nearest-neighbor geometry problem", "A summary written by a larger model", "An encryption key for the memory database"],
-        answer: 2,
+        answer: 1,
         why: "Embeddings place similar meanings near each other in vector space; cosine similarity then retrieves by meaning, not keywords."
       },
       {
@@ -90,19 +90,19 @@ export default {
       {
         q: "When should the agent call memory_write?",
         options: ["After every single tool call, for completeness", "At decision points: one memory per task or per durable lesson learned — never per tool call", "Only when the user explicitly says 'remember this'", "Once per year during maintenance"],
-        answer: 2,
+        answer: 1,
         why: "Per-step writes flood the store with noise and cost an embedding call each time. Decision-point writes keep memory dense and valuable."
       },
       {
         q: "Why does procedural memory often live as versioned documents or code rather than vectors?",
         options: ["Vectors cannot store text", "Procedures need exactness — similarity search retrieves 'close enough', which is dangerous for step-by-step workflows", "Documents are cheaper than databases", "Procedural memory is never retrieved"],
-        answer: 0,
+        answer: 1,
         why: "A playbook applied approximately is a playbook applied wrong. Exact artifacts with versioned updates beat fuzzy retrieval for how-to knowledge."
       },
       {
         q: "The update rule for semantic memory is…",
         options: ["Append everything; never delete", "Replace on change and deduplicate — a superseded fact retrieved confidently is worse than no memory", "Decay by age like episodic memory", "Rewrite all facts weekly on a schedule"],
-        answer: 3,
+        answer: 1,
         why: "Semantic facts claim timelessness, so stale ones are actively harmful. Replacement and dedup keep the encyclopedia truthful."
       },
       {
@@ -174,7 +174,7 @@ export default {
       {
         q: "¿Qué produce un modelo de embeddings y por qué es útil para la memoria?",
         options: ["Un ZIP comprimido del texto para almacenamiento más barato", "Un vector denso que captura el significado, así «encontrar recuerdos relevantes» se vuelve un problema geométrico de vecinos cercanos", "Un resumen escrito por un modelo mayor", "Una clave de cifrado para la base de memoria"],
-        answer: 2,
+        answer: 1,
         why: "Los embeddings colocan significados similares cerca en el espacio vectorial; la similitud coseno recupera entonces por significado, no por palabras clave."
       },
       {
@@ -198,13 +198,13 @@ export default {
       {
         q: "¿Cuándo debe el agente llamar a memory_write?",
         options: ["Tras cada llamada a herramienta, por completitud", "En puntos de decisión: un recuerdo por tarea o por lección duradera aprendida — nunca por llamada a herramienta", "Solo cuando el usuario dice explícitamente «recuerda esto»", "Una vez al año durante el mantenimiento"],
-        answer: 2,
+        answer: 1,
         why: "Escribir por paso inunda el almacén de ruido y cuesta una llamada de embedding cada vez. Escribir en puntos de decisión mantiene la memoria densa y valiosa."
       },
       {
         q: "¿Por qué la memoria procedimental suele vivir como documentos versionados o código en lugar de vectores?",
         options: ["Los vectores no pueden almacenar texto", "Los procedimientos necesitan exactitud: la búsqueda por similitud recupera «bastante parecido», lo cual es peligroso para flujos paso a paso", "Los documentos son más baratos que las bases de datos", "La memoria procedimental nunca se recupera"],
-        answer: 0,
+        answer: 1,
         why: "Un manual aplicado de forma aproximada es un manual aplicado mal. Los artefactos exactos con actualizaciones versionadas vencen a la recuperación difusa para el conocimiento de cómo hacerlo."
       },
       {

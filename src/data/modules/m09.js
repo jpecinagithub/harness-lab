@@ -92,7 +92,7 @@ export default {
       {
         q: "Two loops that must agree before acting can…",
         options: ["Never fail if both use the same model", "Deadlock or duplicate work if their contract is underspecified", "Halve latency in every scenario", "Automatically share one context window"],
-        answer: 2,
+        answer: 1,
         why: "Without a precise contract — who owns what, who decides ties — interacting loops develop emergent failure modes like deadlock and duplicated effort."
       },
       {
@@ -202,7 +202,7 @@ export default {
       {
         q: "Dos bucles que deben ponerse de acuerdo antes de actuar pueden…",
         options: ["No fallar nunca si ambos usan el mismo modelo", "Bloquearse o duplicar trabajo si su contrato está poco especificado", "Reducir la latencia a la mitad en todos los casos", "Compartir automáticamente una ventana de contexto"],
-        answer: 2,
+        answer: 1,
         why: "Sin un contrato preciso — quién posee qué, quién desempata — los bucles que interactúan desarrollan modos de fallo emergentes como bloqueos y trabajo duplicado."
       },
       {

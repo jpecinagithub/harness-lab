@@ -68,7 +68,7 @@ export default {
       {
         q: "Why does a separate critic call outperform asking the generator to 'check its own work' in the same prompt?",
         options: ["Separate calls are always cheaper", "The model grades its own homework generously; an independent critic with an explicit rubric and no access to the generator's reasoning has fewer blind spots", "Critics use a different neural network architecture", "Generators cannot read rubrics"],
-        answer: 2,
+        answer: 1,
         why: "Self-grading in one prompt inherits the generator's blind spots and optimism. Independence plus an explicit checklist is what makes the second opinion valuable."
       },
       {
@@ -80,7 +80,7 @@ export default {
       {
         q: "Your repair loop shows attempt 2 and attempt 4 failing with the same normalized error signature. What should the harness do?",
         options: ["Increase maxAttempts to 20 and continue", "Switch to a larger model mid-loop without recording it", "Stop immediately — this is a stuck loop — and escalate with the history", "Delete the error logs to save context"],
-        answer: 3,
+        answer: 2,
         why: "A repeated error signature means the model is rewriting the same broken code. More attempts burn tokens; the correct move is to stop and escalate."
       },
       {
@@ -92,7 +92,7 @@ export default {
       {
         q: "Which scenario describes oscillation in a verify loop?",
         options: ["The loop finishes on the first attempt", "Attempt 3 fixes the null check but breaks the schema; attempt 4 restores the schema but drops the null check", "The rubric score climbs steadily to 10", "The critic and generator agree immediately"],
-        answer: 2,
+        answer: 1,
         why: "Oscillation is the artifact ping-ponging between two defects — each repair unfixes the previous one. It never converges without intervention."
       },
       {
@@ -104,7 +104,7 @@ export default {
       {
         q: "Why should the critic receive the artifact plus requirements, but NOT the generator's internal reasoning?",
         options: ["Reasoning chains are too long to fit in any context window", "To preserve the critic's independence — shared reasoning inherits the generator's blind spots", "Generators are forbidden from producing reasoning", "It makes the critic run faster on GPUs"],
-        answer: 3,
+        answer: 1,
         why: "A critic that reads the generator's monologue tends to retrace the same faulty logic. Independence is the point of the second opinion."
       },
       {

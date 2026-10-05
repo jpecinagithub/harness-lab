@@ -80,7 +80,7 @@ export default {
       {
         q: "An approval gate times out with no human response. The safe behavior is to…",
         options: ["Approve automatically — the human probably agrees", "Retry the approval request forever", "Default to deny: reject the action and continue with a safe alternative or escalate", "Let the model approve its own action to keep velocity"],
-        answer: 3,
+        answer: 2,
         why: "Default-deny is the only safe timeout semantic. Approve-on-timeout turns every unattended moment into a security hole, and self-approval defeats the gate entirely."
       },
       {
@@ -92,19 +92,19 @@ export default {
       {
         q: "A loop asks for human approval on every third step. According to the module, this means…",
         options: ["The human-in-the-loop design is working perfectly", "The task decomposition is wrong — the human has become the slowest, most expensive part of the loop", "More gates should be added for safety", "The model needs a higher temperature"],
-        answer: 2,
+        answer: 1,
         why: "Gates belong at the boundary of irreversibility: few and explicit. Approval on routine steps means autonomy failed upstream, at decomposition time."
       },
       {
         q: "In fan-out/fan-in, what should happen to a branch that times out?",
         options: ["Silently drop it so synthesis stays clean", "Report it explicitly as a failure to the synthesizer, alongside the successful results", "Restart the entire fan-out from scratch", "Pretend it succeeded with empty output"],
-        answer: 0,
+        answer: 1,
         why: "Silent drops corrupt synthesis with survivorship bias. The synthesizer must know what failed to weigh the partial results honestly."
       },
       {
         q: "Which action tier fits 'send.email to a customer'?",
         options: ["auto — emails are harmless", "notify — send it, just log prominently", "require — external, hard-to-reverse effect, so a human approves first", "It depends on the model's mood"],
-        answer: 3,
+        answer: 2,
         why: "External, hard-to-reverse effects sit squarely in require-approval. The cost of a mistaken send dwarfs the cost of one approval click."
       },
       {
@@ -190,7 +190,7 @@ export default {
       {
         q: "Una puerta de aprobación expira sin respuesta humana. El comportamiento seguro es…",
         options: ["Aprobar automáticamente: el humano probablemente está de acuerdo", "Reintentar la solicitud de aprobación eternamente", "Denegar por defecto: rechazar la acción y continuar con una alternativa segura o escalar", "Dejar que el modelo apruebe su propia acción para mantener velocidad"],
-        answer: 3,
+        answer: 2,
         why: "La denegación por defecto es la única semántica segura ante timeout. Aprobar ante timeout convierte cada momento desatendido en un agujero de seguridad, y la autoaprobación anula la puerta por completo."
       },
       {
@@ -202,13 +202,13 @@ export default {
       {
         q: "Un bucle pide aprobación humana cada tres pasos. Según el módulo, esto significa…",
         options: ["Que el diseño de humano-en-el-bucle funciona perfectamente", "Que la descomposición de la tarea está mal: el humano se ha convertido en la parte más lenta y cara del bucle", "Que hay que añadir más puertas por seguridad", "Que el modelo necesita mayor temperatura"],
-        answer: 2,
+        answer: 1,
         why: "Las puertas pertenecen a la frontera de la irreversibilidad: pocas y explícitas. La aprobación en pasos rutinarios significa que la autonomía falló antes, en la descomposición."
       },
       {
         q: "En fan-out/fan-in, ¿qué debe pasar con una rama que expira por timeout?",
         options: ["Descartarla en silencio para que la síntesis quede limpia", "Informarla explícitamente como fallo al sintetizador, junto a los resultados exitosos", "Reiniciar toda la distribución desde cero", "Fingir que tuvo éxito con salida vacía"],
-        answer: 0,
+        answer: 1,
         why: "Los descartes silenciosos corrompen la síntesis con sesgo de supervivencia. El sintetizador debe saber qué falló para ponderar honestamente los resultados parciales."
       },
       {
